@@ -1,12 +1,14 @@
-
 import React, { useState } from 'react';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { UserCard } from '@/components/UserCard';
 import { UserModal } from '@/components/UserModal';
 import { User, categoriaUsuarios } from '@/types/user';
+import { useNavigate } from 'react-router-dom';
 
 export default function UserManagement() {
+  const navigate = useNavigate();
+  
   const [usuarios, setUsuarios] = useState<User[]>([
     {
       id: '1',
@@ -71,9 +73,19 @@ export default function UserManagement() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 p-6">
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold text-white">Gestão de Usuários</h2>
-            <p className="text-slate-400">Gerencie usuários e suas permissões</p>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/dashboard')}
+              className="text-slate-400 hover:text-white hover:bg-slate-700/50"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h2 className="text-2xl font-bold text-white">Gestão de Usuários</h2>
+              <p className="text-slate-400">Gerencie usuários e suas permissões</p>
+            </div>
           </div>
           <Button
             onClick={() => abrirModal()}

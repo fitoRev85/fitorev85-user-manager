@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Filter, Edit2, Trash2, MapPin, Star, Users, Calendar, DollarSign, TrendingUp, Eye, Bed, Wifi, Car, Coffee, Dumbbell, Waves, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';

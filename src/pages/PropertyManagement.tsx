@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, MapPin, Star, Users, DollarSign, Save, X, Home } from 'lucide-react';
+import { Plus, Edit2, Trash2, MapPin, Star, Users, DollarSign, Save, X, Home, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useNavigate } from 'react-router-dom';
 
 interface Property {
   id: number;
@@ -36,6 +36,8 @@ interface Property {
 }
 
 export default function PropertyManagement() {
+  const navigate = useNavigate();
+  
   const [propriedades, setPropriedades] = useState<Property[]>([
     {
       id: 1,
@@ -228,12 +230,22 @@ export default function PropertyManagement() {
         {/* Header */}
         <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
           <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-white flex items-center">
-                <Home className="mr-3 text-blue-400" />
-                Gestão de Propriedades
-              </h1>
-              <p className="text-slate-400 mt-2">Cadastro e gerenciamento completo de propriedades</p>
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate('/dashboard')}
+                className="text-slate-400 hover:text-white hover:bg-slate-700/50"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold text-white flex items-center">
+                  <Home className="mr-3 text-blue-400" />
+                  Gestão de Propriedades
+                </h1>
+                <p className="text-slate-400 mt-2">Cadastro e gerenciamento completo de propriedades</p>
+              </div>
             </div>
             <Button
               onClick={() => abrirModal()}
