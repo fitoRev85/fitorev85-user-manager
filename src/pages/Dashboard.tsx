@@ -1,12 +1,14 @@
 
 import React from 'react';
-import { Building2, LogOut } from 'lucide-react';
+import { Building2, LogOut, Home, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { categoriaUsuarios } from '@/types/user';
+import { useNavigate } from 'react-router-dom';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   if (!user) return null;
 
@@ -48,9 +50,42 @@ export default function Dashboard() {
 
       {/* Content */}
       <main className="p-6">
-        <div className="text-center text-white">
+        <div className="text-center text-white mb-8">
           <h2 className="text-3xl font-bold mb-4">Bem-vindo ao FitoRev85</h2>
           <p className="text-slate-400">Sistema de Revenue Management</p>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          <div 
+            onClick={() => navigate('/users')}
+            className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-6 hover:bg-slate-700/50 transition-all cursor-pointer"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg flex items-center justify-center">
+                <Users className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold">Gestão de Usuários</h3>
+                <p className="text-slate-400 text-sm">Gerencie usuários e permissões</p>
+              </div>
+            </div>
+          </div>
+
+          <div 
+            onClick={() => navigate('/properties')}
+            className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-6 hover:bg-slate-700/50 transition-all cursor-pointer"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-r from-green-600 to-emerald-600 rounded-lg flex items-center justify-center">
+                <Home className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold">Gestão de Propriedades</h3>
+                <p className="text-slate-400 text-sm">Cadastre e gerencie propriedades</p>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </div>
