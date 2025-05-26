@@ -9,6 +9,7 @@ import { LoginForm } from "@/components/LoginForm";
 import Index from "./pages/Index";
 import UserManagement from "./pages/UserManagement";
 import PropertyManagement from "./pages/PropertyManagement";
+import HotelManagement from "./pages/HotelManagement";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 
@@ -37,6 +38,7 @@ function AppRoutes() {
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/users" element={<UserManagement />} />
       <Route path="/properties" element={<PropertyManagement />} />
+      <Route path="/hotels" element={<HotelManagement />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
