@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Building2, LogOut, Home, Users, Hotel } from 'lucide-react';
+import { Building2, LogOut, Home, Users, Hotel, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { categoriaUsuarios } from '@/types/user';
@@ -56,7 +56,7 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
           <div 
             onClick={() => navigate('/users')}
             className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-6 hover:bg-slate-700/50 transition-all cursor-pointer"
@@ -98,6 +98,21 @@ export default function Dashboard() {
               <div>
                 <h3 className="text-white font-semibold">Sistema Hoteleiro</h3>
                 <p className="text-slate-400 text-sm">Dashboard e reservas hoteleiras</p>
+              </div>
+            </div>
+          </div>
+
+          <div 
+            onClick={() => navigate('/rms')}
+            className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-6 hover:bg-slate-700/50 transition-all cursor-pointer"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-r from-orange-600 to-red-600 rounded-lg flex items-center justify-center">
+                <BarChart3 className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold">RMS Forecast & Pace</h3>
+                <p className="text-slate-400 text-sm">Forecast manual e análise de pace</p>
               </div>
             </div>
           </div>

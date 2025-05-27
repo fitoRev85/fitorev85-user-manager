@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import UserManagement from "./pages/UserManagement";
 import PropertyManagement from "./pages/PropertyManagement";
 import HotelManagement from "./pages/HotelManagement";
+import RMSForecastPace from "./pages/RMSForecastPace";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 
@@ -39,6 +40,7 @@ function AppRoutes() {
       <Route path="/users" element={<UserManagement />} />
       <Route path="/properties" element={<PropertyManagement />} />
       <Route path="/hotels" element={<HotelManagement />} />
+      <Route path="/rms" element={<RMSForecastPace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
