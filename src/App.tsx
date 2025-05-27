@@ -6,12 +6,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LoginForm } from "@/components/LoginForm";
-import Index from "./pages/Index";
+import Properties from "./pages/Properties";
 import UserManagement from "./pages/UserManagement";
-import PropertyManagement from "./pages/PropertyManagement";
-import HotelManagement from "./pages/HotelManagement";
 import RMSForecastPace from "./pages/RMSForecastPace";
-import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,12 +32,11 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/users" element={<UserManagement />} />
-      <Route path="/properties" element={<PropertyManagement />} />
-      <Route path="/hotels" element={<HotelManagement />} />
-      <Route path="/rms" element={<RMSForecastPace />} />
+      <Route path="/" element={<Properties />} />
+      <Route path="/rms/:propertyId" element={<RMSForecastPace />} />
+      {user.categoria === 'admin' && (
+        <Route path="/users" element={<UserManagement />} />
+      )}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
