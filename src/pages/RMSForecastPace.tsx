@@ -1,14 +1,15 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   TrendingUp, TrendingDown, AlertTriangle, Eye, 
   Calendar, Users, DollarSign, Target, BarChart3,
   ArrowUp, ArrowDown, Minus, Bell, Star,
   MapPin, Trophy, Zap, Activity, ArrowLeft,
-  ChevronLeft, ChevronRight, Edit3, Save, X, Percent
+  ChevronLeft, ChevronRight, Edit3, Save, X, Percent,
+  Clock, Filter, Download, RefreshCw, Brain, CheckCircle
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ComposedChart, Area, AreaChart, ScatterChart, Scatter, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend } from 'recharts';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
 
 const RMSForecastPace = () => {
@@ -24,6 +25,16 @@ const RMSForecastPace = () => {
   const [editingForecast, setEditingForecast] = useState(null);
   const [forecastData, setForecastData] = useState({});
   const [paceData, setPaceData] = useState({});
+
+  // Estados para Revenue Analytics
+  const [selectedSegment, setSelectedSegment] = useState('all');
+  const [analyticsTab, setAnalyticsTab] = useState('seasonality');
+
+  // Estados para Competitive Analysis
+  const [selectedCompetitor, setSelectedCompetitor] = useState('all');
+  const [forecastPeriod, setForecastPeriod] = useState(6);
+  const [optimizationGoal, setOptimizationGoal] = useState('revenue');
+  const [competitiveTab, setCompetitiveTab] = useState('competitive');
 
   // Propriedades simuladas
   const properties = [
@@ -55,6 +66,82 @@ const RMSForecastPace = () => {
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ];
+
+  // Revenue Analytics Data
+  const seasonalityData = [
+    { month: 'Jan', historical: 85, forecast: 88, year2023: 82, year2022: 87 },
+    { month: 'Fev', historical: 78, forecast: 82, year2023: 75, year2022: 81 },
+    { month: 'Mar', historical: 92, forecast: 95, year2023: 89, year2022: 95 },
+    { month: 'Abr', historical: 88, forecast: 90, year2023: 86, year2022: 90 },
+    { month: 'Mai', historical: 85, forecast: 87, year2023: 83, year2022: 87 },
+    { month: 'Jun', historical: 95, forecast: 98, year2023: 92, year2022: 98 },
+    { month: 'Jul', historical: 98, forecast: 100, year2023: 96, year2022: 100 },
+    { month: 'Ago', historical: 96, forecast: 98, year2023: 94, year2022: 98 },
+    { month: 'Set', historical: 90, forecast: 92, year2023: 88, year2022: 92 },
+    { month: 'Out', historical: 93, forecast: 95, year2023: 91, year2022: 95 },
+    { month: 'Nov', historical: 87, forecast: 89, year2023: 85, year2022: 89 },
+    { month: 'Dez', historical: 91, forecast: 94, year2023: 89, year2022: 93 }
+  ];
+
+  const segmentData = [
+    { segment: 'Corporate', occupancy: 75, adr: 280, revpar: 210, growth: 8.5, bookings: 1450 },
+    { segment: 'Leisure', occupancy: 68, adr: 195, revpar: 133, growth: 12.3, bookings: 2850 },
+    { segment: 'Grupos', occupancy: 85, adr: 165, revpar: 140, growth: -2.1, bookings: 890 },
+    { segment: 'Online', occupancy: 72, adr: 220, revpar: 158, growth: 15.7, bookings: 3200 }
+  ];
+
+  const segmentPieData = [
+    { name: 'Corporate', value: 35, color: '#0088FE' },
+    { name: 'Leisure', value: 28, color: '#00C49F' },
+    { name: 'Grupos', value: 15, color: '#FFBB28' },
+    { name: 'Online', value: 22, color: '#FF8042' }
+  ];
+
+  const pickupData = [
+    { days: '90+', current: 45, lastYear: 42, budget: 48 },
+    { days: '60-89', current: 65, lastYear: 62, budget: 68 },
+    { days: '30-59', current: 78, lastYear: 75, budget: 80 },
+    { days: '15-29', current: 85, lastYear: 82, budget: 87 },
+    { days: '7-14', current: 90, lastYear: 88, budget: 92 },
+    { days: '0-6', current: 95, lastYear: 93, budget: 96 }
+  ];
+
+  const pickupTrendData = [
+    { week: 'Sem 1', corporate: 25, leisure: 15, grupos: 35, online: 20 },
+    { week: 'Sem 2', corporate: 35, leisure: 25, grupos: 45, online: 30 },
+    { week: 'Sem 3', corporate: 45, leisure: 35, grupos: 55, online: 42 },
+    { week: 'Sem 4', corporate: 55, leisure: 48, grupos: 65, online: 55 },
+    { week: 'Sem 5', corporate: 65, leisure: 58, grupos: 72, online: 68 },
+    { week: 'Sem 6', corporate: 72, leisure: 68, grupos: 78, online: 75 },
+    { week: 'Sem 7', corporate: 78, leisure: 75, grupos: 82, online: 82 },
+    { week: 'Sem 8', corporate: 85, leisure: 82, grupos: 88, online: 88 }
+  ];
+
+  // Competitive Analysis Data
+  const competitiveData = [
+    { month: 'Jan', ourCompany: 2400, competitor1: 2200, competitor2: 1800, competitor3: 2100, marketAverage: 2125 },
+    { month: 'Fev', ourCompany: 2600, competitor1: 2300, competitor2: 1900, competitor3: 2200, marketAverage: 2250 },
+    { month: 'Mar', ourCompany: 2800, competitor1: 2400, competitor2: 2000, competitor3: 2300, marketAverage: 2375 },
+    { month: 'Abr', ourCompany: 3000, competitor1: 2500, competitor2: 2100, competitor3: 2400, marketAverage: 2500 },
+    { month: 'Mai', ourCompany: 3200, competitor1: 2600, competitor2: 2200, competitor3: 2500, marketAverage: 2625 },
+    { month: 'Jun', ourCompany: 3400, competitor1: 2700, competitor2: 2300, competitor3: 2600, marketAverage: 2750 }
+  ];
+
+  const businessMixData = [
+    { segment: 'Produto A', revenue: 45, margin: 35, growth: 15, marketShare: 28 },
+    { segment: 'Produto B', revenue: 30, margin: 42, growth: 8, marketShare: 22 },
+    { segment: 'Produto C', revenue: 15, margin: 25, growth: 25, marketShare: 15 },
+    { segment: 'Produto D', revenue: 10, margin: 18, growth: -5, marketShare: 12 }
+  ];
+
+  const competitorMetrics = {
+    all: {
+      marketShare: { us: 28, comp1: 25, comp2: 20, comp3: 22, others: 5 },
+      nps: { us: 72, comp1: 68, comp2: 65, comp3: 70 },
+      pricing: { us: 100, comp1: 95, comp2: 88, comp3: 102 },
+      innovation: { us: 85, comp1: 78, comp2: 72, comp3: 80 }
+    }
+  };
 
   // Inicializar dados de forecast
   useEffect(() => {
@@ -127,6 +214,103 @@ const RMSForecastPace = () => {
     }
     setAlerts(newAlerts);
   }, []);
+
+  // Competitive Analysis Functions
+  const generateForecast = (historicalData, periods) => {
+    const values = historicalData.map(d => d.ourCompany);
+    const trend = (values[values.length - 1] - values[0]) / (values.length - 1);
+    const seasonality = values.map((v, i) => v - (values[0] + trend * i));
+    const avgSeasonality = seasonality.reduce((a, b) => a + b, 0) / seasonality.length;
+    
+    const forecast = [];
+    for (let i = 1; i <= periods; i++) {
+      const baseValue = values[values.length - 1] + trend * i;
+      const seasonal = avgSeasonality * Math.sin((i * Math.PI) / 6);
+      const noise = (Math.random() - 0.5) * 100;
+      
+      forecast.push({
+        month: `Mês ${i}`,
+        predicted: Math.max(0, baseValue + seasonal + noise),
+        confidence: 85 + Math.random() * 10,
+        lower: Math.max(0, baseValue + seasonal - 200),
+        upper: baseValue + seasonal + 200
+      });
+    }
+    return forecast;
+  };
+
+  const competitiveForecastData = useMemo(() => 
+    generateForecast(competitiveData, forecastPeriod), 
+    [forecastPeriod]
+  );
+
+  const optimizePortfolio = (data, goal) => {
+    let optimized = [...data];
+    
+    switch (goal) {
+      case 'revenue':
+        optimized = optimized.map(item => ({
+          ...item,
+          recommended: item.revenue * 1.2 + item.growth * 0.5
+        }));
+        break;
+      case 'margin':
+        optimized = optimized.map(item => ({
+          ...item,
+          recommended: item.margin * 1.5 + item.revenue * 0.3
+        }));
+        break;
+      case 'growth':
+        optimized = optimized.map(item => ({
+          ...item,
+          recommended: item.growth * 2 + item.marketShare * 0.5
+        }));
+        break;
+      default:
+        optimized = optimized.map(item => ({
+          ...item,
+          recommended: (item.revenue + item.margin + item.growth) / 3
+        }));
+    }
+    
+    return optimized.sort((a, b) => b.recommended - a.recommended);
+  };
+
+  const optimizedMix = useMemo(() => 
+    optimizePortfolio(businessMixData, optimizationGoal), 
+    [optimizationGoal]
+  );
+
+  const radarData = [
+    {
+      metric: 'Market Share',
+      us: competitorMetrics.all.marketShare.us,
+      competitor1: competitorMetrics.all.marketShare.comp1,
+      competitor2: competitorMetrics.all.marketShare.comp2,
+      competitor3: competitorMetrics.all.marketShare.comp3
+    },
+    {
+      metric: 'NPS',
+      us: competitorMetrics.all.nps.us,
+      competitor1: competitorMetrics.all.nps.comp1,
+      competitor2: competitorMetrics.all.nps.comp2,
+      competitor3: competitorMetrics.all.nps.comp3
+    },
+    {
+      metric: 'Pricing Index',
+      us: competitorMetrics.all.pricing.us,
+      competitor1: competitorMetrics.all.pricing.comp1,
+      competitor2: competitorMetrics.all.pricing.comp2,
+      competitor3: competitorMetrics.all.pricing.comp3
+    },
+    {
+      metric: 'Innovation Score',
+      us: competitorMetrics.all.innovation.us,
+      competitor1: competitorMetrics.all.innovation.comp1,
+      competitor2: competitorMetrics.all.innovation.comp2,
+      competitor3: competitorMetrics.all.innovation.comp3
+    }
+  ];
 
   const getTrendIcon = (current, comparison) => {
     const diff = ((current - comparison) / comparison) * 100;
@@ -485,6 +669,788 @@ const RMSForecastPace = () => {
     );
   };
 
+  // Revenue Analytics Render Functions
+  const renderSeasonalityTab = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="h-5 w-5 text-blue-400" />
+            <h3 className="text-sm font-medium text-white">Índice Sazonal Atual</h3>
+          </div>
+          <div className="text-3xl font-bold text-blue-400 mb-2">92.5</div>
+          <div className="text-xs text-slate-400 mt-1">Alta temporada detectada</div>
+          <div className="text-xs text-green-400 mt-1">+5.2% vs ano anterior</div>
+        </div>
+
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Target className="h-5 w-5 text-green-400" />
+            <h3 className="text-sm font-medium text-white">Previsão Próximo Mês</h3>
+          </div>
+          <div className="text-3xl font-bold text-green-400 mb-2">95.2</div>
+          <div className="text-xs text-slate-400 mt-1">Pico sazonal esperado</div>
+          <div className="text-xs text-blue-400 mt-1">Confiança: 87%</div>
+        </div>
+
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Calendar className="h-5 w-5 text-purple-400" />
+            <h3 className="text-sm font-medium text-white">Variação Anual</h3>
+          </div>
+          <div className="text-3xl font-bold text-purple-400 mb-2">±12.8%</div>
+          <div className="text-xs text-slate-400 mt-1">Amplitude sazonal</div>
+          <div className="text-xs text-orange-400 mt-1">Padrão estável</div>
+        </div>
+      </div>
+
+      <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-white">Análise de Sazonalidade - Padrões Históricos</h3>
+          <select 
+            value={selectedPeriod} 
+            onChange={(e) => setSelectedPeriod(e.target.value)}
+            className="bg-slate-700/50 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="12months">12 Meses</option>
+            <option value="24months">24 Meses</option>
+            <option value="36months">36 Meses</option>
+          </select>
+        </div>
+        <ResponsiveContainer width="100%" height={400}>
+          <ComposedChart data={seasonalityData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+            <XAxis dataKey="month" stroke="#94a3b8" />
+            <YAxis stroke="#94a3b8" />
+            <Tooltip 
+              contentStyle={{
+                backgroundColor: '#1e293b',
+                border: '1px solid #475569',
+                borderRadius: '8px',
+                color: '#ffffff'
+              }}
+            />
+            <Legend />
+            <Area type="monotone" dataKey="historical" fill="#8884d8" fillOpacity={0.3} />
+            <Line type="monotone" dataKey="forecast" stroke="#ff7300" strokeWidth={3} strokeDasharray="5 5" />
+            <Line type="monotone" dataKey="year2023" stroke="#82ca9d" strokeWidth={2} />
+            <Line type="monotone" dataKey="year2022" stroke="#8884d8" strokeWidth={2} />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-4">Insights Sazonais</h3>
+          <div className="space-y-4">
+            <div className="p-3 bg-blue-600/20 rounded-lg border border-blue-500/30">
+              <div className="text-sm font-medium text-blue-300">Alta Temporada</div>
+              <div className="text-xs text-blue-400 mt-1">Jun-Ago: +18% ocupação média</div>
+            </div>
+            <div className="p-3 bg-yellow-600/20 rounded-lg border border-yellow-500/30">
+              <div className="text-sm font-medium text-yellow-300">Temporada Média</div>
+              <div className="text-xs text-yellow-400 mt-1">Mar-Mai, Set-Nov: Ocupação estável</div>
+            </div>
+            <div className="p-3 bg-red-600/20 rounded-lg border border-red-500/30">
+              <div className="text-sm font-medium text-red-300">Baixa Temporada</div>
+              <div className="text-xs text-red-400 mt-1">Dez-Fev: -12% ocupação média</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-4">Recomendações Estratégicas</h3>
+          <div className="space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="w-2 h-2 bg-green-400 rounded-full mt-2"></div>
+              <div>
+                <div className="text-sm font-medium text-white">Otimizar Preços Alta Temporada</div>
+                <div className="text-xs text-slate-400">Aumentar ADR em 8-12% nos picos</div>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-2 h-2 bg-blue-400 rounded-full mt-2"></div>
+              <div>
+                <div className="text-sm font-medium text-white">Campanhas Baixa Temporada</div>
+                <div className="text-xs text-slate-400">Promoções direcionadas Dez-Fev</div>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-2 h-2 bg-purple-400 rounded-full mt-2"></div>
+              <div>
+                <div className="text-sm font-medium text-white">Gestão de Inventory</div>
+                <div className="text-xs text-slate-400">Ajustar restrições por sazonalidade</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderSegmentationTab = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        {segmentData.map((segment, index) => (
+          <div 
+            key={segment.segment} 
+            className={`bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6 cursor-pointer transition-all ${
+              selectedSegment === segment.segment.toLowerCase() ? 'ring-2 ring-blue-500' : ''
+            }`}
+            onClick={() => setSelectedSegment(segment.segment.toLowerCase())}
+          >
+            <h3 className="text-sm font-medium text-white mb-4">{segment.segment}</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-xs text-slate-400">Ocupação</span>
+                <span className="text-sm font-bold text-white">{segment.occupancy}%</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-xs text-slate-400">ADR</span>
+                <span className="text-sm font-bold text-white">R$ {segment.adr}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-xs text-slate-400">RevPAR</span>
+                <span className="text-sm font-bold text-white">R$ {segment.revpar}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-xs text-slate-400">Crescimento</span>
+                <span className={`text-sm font-bold ${segment.growth > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {segment.growth > 0 ? '+' : ''}{segment.growth}%
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+          <h3 className="font-semibold text-white mb-4">Performance por Segmento</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={segmentData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+              <XAxis dataKey="segment" stroke="#94a3b8" />
+              <YAxis stroke="#94a3b8" />
+              <Tooltip 
+                contentStyle={{
+                  backgroundColor: '#1e293b',
+                  border: '1px solid #475569',
+                  borderRadius: '8px',
+                  color: '#ffffff'
+                }}
+              />
+              <Legend />
+              <Bar dataKey="occupancy" fill="#8884d8" name="Ocupação %" />
+              <Bar dataKey="revpar" fill="#82ca9d" name="RevPAR" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+          <h3 className="font-semibold text-white mb-4">Distribuição de Revenue</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={segmentPieData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {segmentPieData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip 
+                contentStyle={{
+                  backgroundColor: '#1e293b',
+                  border: '1px solid #475569',
+                  borderRadius: '8px',
+                  color: '#ffffff'
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+        <h3 className="font-semibold text-white mb-4">Análise Detalhada por Segmento</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="space-y-4">
+            <h4 className="font-medium text-blue-400">Corporate</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Booking Window:</span>
+                <span className="font-medium text-white">45 dias</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Stay Duration:</span>
+                <span className="font-medium text-white">2.1 noites</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Cancelation Rate:</span>
+                <span className="font-medium text-white">8.5%</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Repeat Rate:</span>
+                <span className="font-medium text-white">68%</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h4 className="font-medium text-green-400">Leisure</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Booking Window:</span>
+                <span className="font-medium text-white">28 dias</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Stay Duration:</span>
+                <span className="font-medium text-white">3.8 noites</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Cancelation Rate:</span>
+                <span className="font-medium text-white">12.3%</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Repeat Rate:</span>
+                <span className="font-medium text-white">35%</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h4 className="font-medium text-purple-400">Online</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Booking Window:</span>
+                <span className="font-medium text-white">12 dias</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Stay Duration:</span>
+                <span className="font-medium text-white">2.9 noites</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Cancelation Rate:</span>
+                <span className="font-medium text-white">15.7%</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Repeat Rate:</span>
+                <span className="font-medium text-white">22%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderPickupTab = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Clock className="h-5 w-5 text-blue-400" />
+            <h3 className="text-sm font-medium text-white">Pickup Atual (30 dias)</h3>
+          </div>
+          <div className="text-3xl font-bold text-blue-400 mb-2">78%</div>
+          <div className="text-xs text-slate-400 mt-1">vs 75% ano anterior</div>
+          <div className="text-xs text-green-400 mt-1">+4.0% acima do budget</div>
+        </div>
+
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="h-5 w-5 text-green-400" />
+            <h3 className="text-sm font-medium text-white">Velocidade de Reservas</h3>
+          </div>
+          <div className="text-3xl font-bold text-green-400 mb-2">+12.5%</div>
+          <div className="text-xs text-slate-400 mt-1">vs período similar</div>
+          <div className="text-xs text-blue-400 mt-1">Tendência acelerada</div>
+        </div>
+
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Target className="h-5 w-5 text-purple-400" />
+            <h3 className="text-sm font-medium text-white">Projeção Final</h3>
+          </div>
+          <div className="text-3xl font-bold text-purple-400 mb-2">94%</div>
+          <div className="text-xs text-slate-400 mt-1">Ocupação esperada</div>
+          <div className="text-xs text-orange-400 mt-1">Confiança: 91%</div>
+        </div>
+      </div>
+
+      <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+        <h3 className="font-semibold text-white mb-4">Curva de Pick-up por Antecedência</h3>
+        <ResponsiveContainer width="100%" height={350}>
+          <BarChart data={pickupData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+            <XAxis dataKey="days" stroke="#94a3b8" />
+            <YAxis stroke="#94a3b8" />
+            <Tooltip 
+              contentStyle={{
+                backgroundColor: '#1e293b',
+                border: '1px solid #475569',
+                borderRadius: '8px',
+                color: '#ffffff'
+              }}
+            />
+            <Legend />
+            <Bar dataKey="current" fill="#8884d8" name="Atual" />
+            <Bar dataKey="lastYear" fill="#82ca9d" name="Ano Anterior" />
+            <Bar dataKey="budget" fill="#ffc658" name="Budget" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+        <h3 className="font-semibold text-white mb-4">Evolução Semanal do Pick-up por Segmento</h3>
+        <ResponsiveContainer width="100%" height={350}>
+          <AreaChart data={pickupTrendData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+            <XAxis dataKey="week" stroke="#94a3b8" />
+            <YAxis stroke="#94a3b8" />
+            <Tooltip 
+              contentStyle={{
+                backgroundColor: '#1e293b',
+                border: '1px solid #475569',
+                borderRadius: '8px',
+                color: '#ffffff'
+              }}
+            />
+            <Legend />
+            <Area type="monotone" dataKey="corporate" stackId="1" stroke="#8884d8" fill="#8884d8" />
+            <Area type="monotone" dataKey="leisure" stackId="1" stroke="#82ca9d" fill="#82ca9d" />
+            <Area type="monotone" dataKey="grupos" stackId="1" stroke="#ffc658" fill="#ffc658" />
+            <Area type="monotone" dataKey="online" stackId="1" stroke="#ff7300" fill="#ff7300" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-4">Padrões de Reserva</h3>
+          <div className="space-y-4">
+            <div className="p-3 bg-blue-600/20 rounded-lg border border-blue-500/30">
+              <div className="text-sm font-medium text-blue-300">Early Bookers (90+ dias)</div>
+              <div className="text-xs text-blue-400 mt-1">Principalmente Corporate e Grupos</div>
+              <div className="text-xs text-slate-400">ADR Premium: +15%</div>
+            </div>
+            <div className="p-3 bg-green-600/20 rounded-lg border border-green-500/30">
+              <div className="text-sm font-medium text-green-300">Advance Bookers (30-89 dias)</div>
+              <div className="text-xs text-green-400 mt-1">Mix equilibrado de segmentos</div>
+              <div className="text-xs text-slate-400">ADR Padrão: base</div>
+            </div>
+            <div className="p-3 bg-orange-600/20 rounded-lg border border-orange-500/30">
+              <div className="text-sm font-medium text-orange-300">Last Minute (0-29 dias)</div>
+              <div className="text-xs text-orange-400 mt-1">Leisure e Online dominantes</div>
+              <div className="text-xs text-slate-400">ADR Promocional: -8%</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-4">Alertas e Oportunidades</h3>
+          <div className="space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="w-2 h-2 bg-red-400 rounded-full mt-2"></div>
+              <div>
+                <div className="text-sm font-medium text-white">Pickup Slow - Grupos</div>
+                <div className="text-xs text-slate-400">-15% vs ano anterior nos próximos 60 dias</div>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-2 h-2 bg-green-400 rounded-full mt-2"></div>
+              <div>
+                <div className="text-sm font-medium text-white">Corporate Accelerated</div>
+                <div className="text-xs text-slate-400">+22% booking pace vs budget</div>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2"></div>
+              <div>
+                <div className="text-sm font-medium text-white">Online Opportunity</div>
+                <div className="text-xs text-slate-400">Potencial para aumentar ADR em 5%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Competitive Analysis Render Functions
+  const MetricCard = ({ title, value, change, icon: Icon, color = 'blue' }) => (
+    <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-slate-400">{title}</p>
+          <p className={`text-2xl font-bold text-${color}-400 mt-1`}>{value}</p>
+        </div>
+        <Icon className={`h-8 w-8 text-${color}-400`} />
+      </div>
+      {change && (
+        <div className="mt-4 flex items-center">
+          {change > 0 ? (
+            <ArrowUp className="h-4 w-4 text-green-400 mr-1" />
+          ) : change < 0 ? (
+            <ArrowDown className="h-4 w-4 text-red-400 mr-1" />
+          ) : (
+            <Minus className="h-4 w-4 text-slate-400 mr-1" />
+          )}
+          <span className={`text-sm font-medium ${
+            change > 0 ? 'text-green-400' : change < 0 ? 'text-red-400' : 'text-slate-400'
+          }`}>
+            {Math.abs(change)}% vs mês anterior
+          </span>
+        </div>
+      )}
+    </div>
+  );
+
+  const CompetitiveAnalysis = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <MetricCard
+          title="Market Share"
+          value="28.5%"
+          change={2.3}
+          icon={Target}
+          color="blue"
+        />
+        <MetricCard
+          title="NPS Score"
+          value="72"
+          change={4}
+          icon={Users}
+          color="green"
+        />
+        <MetricCard
+          title="Pricing Index"
+          value="100"
+          change={-1.2}
+          icon={DollarSign}
+          color="purple"
+        />
+        <MetricCard
+          title="Innovation Score"
+          value="85"
+          change={3.5}
+          icon={Brain}
+          color="orange"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-4">Performance vs Competidores</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={competitiveData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+              <XAxis dataKey="month" stroke="#94a3b8" />
+              <YAxis stroke="#94a3b8" />
+              <Tooltip 
+                contentStyle={{
+                  backgroundColor: '#1e293b',
+                  border: '1px solid #475569',
+                  borderRadius: '8px',
+                  color: '#ffffff'
+                }}
+              />
+              <Legend />
+              <Line type="monotone" dataKey="ourCompany" stroke="#3B82F6" strokeWidth={3} name="Nossa Empresa" />
+              <Line type="monotone" dataKey="competitor1" stroke="#EF4444" strokeWidth={2} name="Concorrente 1" />
+              <Line type="monotone" dataKey="competitor2" stroke="#F59E0B" strokeWidth={2} name="Concorrente 2" />
+              <Line type="monotone" dataKey="competitor3" stroke="#10B981" strokeWidth={2} name="Concorrente 3" />
+              <Line type="monotone" dataKey="marketAverage" stroke="#6B7280" strokeDasharray="5 5" name="Média do Mercado" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-4">Radar Competitivo</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <RadarChart data={radarData}>
+              <PolarGrid stroke="#475569" />
+              <PolarAngleAxis dataKey="metric" tick={{ fill: '#94a3b8', fontSize: 12 }} />
+              <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 10 }} />
+              <Radar name="Nossa Empresa" dataKey="us" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.3} strokeWidth={2} />
+              <Radar name="Concorrente 1" dataKey="competitor1" stroke="#EF4444" fill="#EF4444" fillOpacity={0.1} />
+              <Radar name="Concorrente 2" dataKey="competitor2" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.1} />
+              <Radar name="Concorrente 3" dataKey="competitor3" stroke="#10B981" fill="#10B981" fillOpacity={0.1} />
+              <Legend />
+            </RadarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-white mb-4">Market Share Distribution</h3>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {Object.entries(competitorMetrics.all.marketShare).map(([key, value]) => (
+            <div key={key} className="text-center">
+              <div className="text-2xl font-bold text-blue-400">{value}%</div>
+              <div className="text-sm text-slate-400 capitalize">
+                {key === 'us' ? 'Nossa Empresa' : key === 'others' ? 'Outros' : `Concorrente ${key.slice(-1)}`}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const DisplacementAnalysis = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-white">Otimização de Mix de Negócios</h2>
+        <select
+          value={optimizationGoal}
+          onChange={(e) => setOptimizationGoal(e.target.value)}
+          className="bg-slate-700/50 border border-slate-600 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="revenue">Maximizar Receita</option>
+          <option value="margin">Maximizar Margem</option>
+          <option value="growth">Maximizar Crescimento</option>
+          <option value="balanced">Abordagem Balanceada</option>
+        </select>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-4">Mix Atual vs Otimizado</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={optimizedMix}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+              <XAxis dataKey="segment" stroke="#94a3b8" />
+              <YAxis stroke="#94a3b8" />
+              <Tooltip 
+                contentStyle={{
+                  backgroundColor: '#1e293b',
+                  border: '1px solid #475569',
+                  borderRadius: '8px',
+                  color: '#ffffff'
+                }}
+              />
+              <Legend />
+              <Bar dataKey="revenue" fill="#3B82F6" name="Receita Atual (%)" />
+              <Bar dataKey="recommended" fill="#10B981" name="Recomendado" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-4">Análise de Performance</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <ScatterChart data={businessMixData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+              <XAxis dataKey="marketShare" name="Market Share" stroke="#94a3b8" />
+              <YAxis dataKey="growth" name="Crescimento" stroke="#94a3b8" />
+              <Tooltip 
+                cursor={{ strokeDasharray: '3 3' }}
+                contentStyle={{
+                  backgroundColor: '#1e293b',
+                  border: '1px solid #475569',
+                  borderRadius: '8px',
+                  color: '#ffffff'
+                }}
+              />
+              <Scatter name="Produtos" dataKey="margin" fill="#8884d8" />
+            </ScatterChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-white mb-4">Recomendações de Otimização</h3>
+        <div className="space-y-4">
+          {optimizedMix.map((item, index) => (
+            <div key={item.segment} className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <div className={`w-3 h-3 rounded-full ${
+                  index === 0 ? 'bg-green-400' : index === 1 ? 'bg-blue-400' : index === 2 ? 'bg-yellow-400' : 'bg-red-400'
+                }`}></div>
+                <div>
+                  <div className="font-medium text-white">{item.segment}</div>
+                  <div className="text-sm text-slate-400">
+                    Receita: {item.revenue}% | Margem: {item.margin}% | Crescimento: {item.growth}%
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="font-semibold text-white">Prioridade #{index + 1}</div>
+                <div className="text-sm text-slate-400">Score: {item.recommended.toFixed(1)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const ForecastingAnalysis = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-white">Forecasting Automático com ML</h2>
+        <select
+          value={forecastPeriod}
+          onChange={(e) => setForecastPeriod(parseInt(e.target.value))}
+          className="bg-slate-700/50 border border-slate-600 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value={3}>3 meses</option>
+          <option value={6}>6 meses</option>
+          <option value={12}>12 meses</option>
+        </select>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <MetricCard
+          title="Precisão do Modelo"
+          value="87.3%"
+          change={2.1}
+          icon={Brain}
+          color="green"
+        />
+        <MetricCard
+          title="Confiança Média"
+          value="89.2%"
+          change={1.5}
+          icon={CheckCircle}
+          color="blue"
+        />
+        <MetricCard
+          title="Tendência Prevista"
+          value="+12.4%"
+          change={3.2}
+          icon={TrendingUp}
+          color="purple"
+        />
+      </div>
+
+      <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-white mb-4">Previsão de Performance</h3>
+        <ResponsiveContainer width="100%" height={400}>
+          <ComposedChart data={[...competitiveData, ...competitiveForecastData]}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+            <XAxis dataKey="month" stroke="#94a3b8" />
+            <YAxis stroke="#94a3b8" />
+            <Tooltip 
+              contentStyle={{
+                backgroundColor: '#1e293b',
+                border: '1px solid #475569',
+                borderRadius: '8px',
+                color: '#ffffff'
+              }}
+            />
+            <Legend />
+            <Area 
+              dataKey="upper" 
+              stackId="confidence" 
+              stroke="none" 
+              fill="#3B82F6" 
+              fillOpacity={0.1} 
+              name="Intervalo de Confiança"
+            />
+            <Area 
+              dataKey="lower" 
+              stackId="confidence" 
+              stroke="none" 
+              fill="#ffffff" 
+              fillOpacity={1}
+            />
+            <Line 
+              type="monotone" 
+              dataKey="ourCompany" 
+              stroke="#3B82F6" 
+              strokeWidth={3} 
+              name="Histórico"
+              connectNulls={false}
+            />
+            <Line 
+              type="monotone" 
+              dataKey="predicted" 
+              stroke="#10B981" 
+              strokeWidth={3} 
+              strokeDasharray="5 5"
+              name="Previsão ML"
+              connectNulls={false}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-4">Fatores de Influência</h3>
+          <div className="space-y-3">
+            {[
+              { factor: 'Sazonalidade', impact: 85, trend: 'up' },
+              { factor: 'Tendência de Mercado', impact: 78, trend: 'up' },
+              { factor: 'Ações Competitivas', impact: 65, trend: 'down' },
+              { factor: 'Fatores Externos', impact: 45, trend: 'neutral' }
+            ].map((item) => (
+              <div key={item.factor} className="flex items-center justify-between">
+                <span className="text-slate-300">{item.factor}</span>
+                <div className="flex items-center space-x-2">
+                  <div className="w-24 bg-slate-600 rounded-full h-2">
+                    <div
+                      className="bg-blue-400 h-2 rounded-full"
+                      style={{ width: `${item.impact}%` }}
+                    ></div>
+                  </div>
+                  <span className="text-sm text-slate-400 w-8">{item.impact}%</span>
+                  {item.trend === 'up' && <ArrowUp className="h-4 w-4 text-green-400" />}
+                  {item.trend === 'down' && <ArrowDown className="h-4 w-4 text-red-400" />}
+                  {item.trend === 'neutral' && <Minus className="h-4 w-4 text-slate-400" />}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-4">Cenários de Previsão</h3>
+          <div className="space-y-4">
+            <div className="p-4 bg-green-600/20 rounded-lg border border-green-500/30">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-medium text-green-300">Cenário Otimista</span>
+                <span className="text-green-400 font-bold">+18.5%</span>
+              </div>
+              <div className="text-sm text-green-400">
+                Crescimento acelerado com expansão de mercado
+              </div>
+            </div>
+            
+            <div className="p-4 bg-blue-600/20 rounded-lg border border-blue-500/30">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-medium text-blue-300">Cenário Base</span>
+                <span className="text-blue-400 font-bold">+12.4%</span>
+              </div>
+              <div className="text-sm text-blue-400">
+                Crescimento sustentável seguindo tendências atuais
+              </div>
+            </div>
+            
+            <div className="p-4 bg-orange-600/20 rounded-lg border border-orange-500/30">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-medium text-orange-300">Cenário Conservador</span>
+                <span className="text-orange-400 font-bold">+7.2%</span>
+              </div>
+              <div className="text-sm text-orange-400">
+                Crescimento moderado com desafios de mercado
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   const currentMonthData = getCurrentMonthData();
   const currentPaceData = getCurrentPaceData();
   const property = getCurrentProperty();
@@ -505,23 +1471,37 @@ const RMSForecastPace = () => {
             </Button>
             <div>
               <h1 className="text-3xl font-bold text-white">Revenue Management System</h1>
-              <p className="text-slate-400">Dashboard KPIs & Forecast Manual</p>
+              <p className="text-slate-400">Sistema Completo de Gestão de Revenue</p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`px-4 py-2 rounded-lg transition-all ${activeTab === 'dashboard' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
-            >
-              Dashboard KPIs
-            </button>
-            <button
-              onClick={() => setActiveTab('forecast')}
-              className={`px-4 py-2 rounded-lg transition-all ${activeTab === 'forecast' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
-            >
-              Forecast Manual
-            </button>
-          </div>
+        </div>
+
+        {/* Navigation Tabs */}
+        <div className="flex space-x-1 bg-slate-800/50 p-1 rounded-lg w-fit">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeTab === 'dashboard' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
+          >
+            Dashboard KPIs
+          </button>
+          <button
+            onClick={() => setActiveTab('forecast')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeTab === 'forecast' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
+          >
+            Forecast Manual
+          </button>
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeTab === 'analytics' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
+          >
+            Revenue Analytics
+          </button>
+          <button
+            onClick={() => setActiveTab('competitive')}
+            className={`px-4 py-2 rounded-lg transition-all ${activeTab === 'competitive' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
+          >
+            Análise Competitiva
+          </button>
         </div>
 
         {activeTab === 'dashboard' && (
@@ -898,6 +1878,64 @@ const RMSForecastPace = () => {
                 </div>
               </div>
             </div>
+          </>
+        )}
+
+        {activeTab === 'analytics' && (
+          <>
+            <div className="flex space-x-1 bg-slate-800/50 p-1 rounded-lg w-fit">
+              <button
+                onClick={() => setAnalyticsTab('seasonality')}
+                className={`px-4 py-2 rounded-lg transition-all text-sm ${analyticsTab === 'seasonality' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
+              >
+                Análise de Sazonalidade
+              </button>
+              <button
+                onClick={() => setAnalyticsTab('segmentation')}
+                className={`px-4 py-2 rounded-lg transition-all text-sm ${analyticsTab === 'segmentation' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
+              >
+                Segmentação de Demanda
+              </button>
+              <button
+                onClick={() => setAnalyticsTab('pickup')}
+                className={`px-4 py-2 rounded-lg transition-all text-sm ${analyticsTab === 'pickup' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
+              >
+                Pick-up Analysis
+              </button>
+            </div>
+
+            {analyticsTab === 'seasonality' && renderSeasonalityTab()}
+            {analyticsTab === 'segmentation' && renderSegmentationTab()}
+            {analyticsTab === 'pickup' && renderPickupTab()}
+          </>
+        )}
+
+        {activeTab === 'competitive' && (
+          <>
+            <div className="flex space-x-1 bg-slate-800/50 p-1 rounded-lg w-fit">
+              <button
+                onClick={() => setCompetitiveTab('competitive')}
+                className={`px-4 py-2 rounded-lg transition-all text-sm ${competitiveTab === 'competitive' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
+              >
+                Análise Competitiva
+              </button>
+              <button
+                onClick={() => setCompetitiveTab('displacement')}
+                className={`px-4 py-2 rounded-lg transition-all text-sm ${competitiveTab === 'displacement' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
+              >
+                Displacement Analysis
+              </button>
+              <button
+                onClick={() => setCompetitiveTab('forecasting')}
+                className={`px-4 py-2 rounded-lg transition-all text-sm ${competitiveTab === 'forecasting' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
+              >
+                Forecasting ML
+              </button>
+            </div>
+
+            {competitiveTab === 'competitive' && <CompetitiveAnalysis />}
+            {competitiveTab === 'displacement' && <DisplacementAnalysis />}
+            {competitiveTab === 'forecasting' && <ForecastingAnalysis />}
           </>
         )}
       </div>
