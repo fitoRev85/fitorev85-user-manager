@@ -1,14 +1,15 @@
 
-import React from 'react';
-import { Building2, LogOut, ArrowRight, TrendingUp, Users, DollarSign, Percent, MapPin, Star } from 'lucide-react';
+import React, { useState } from 'react';
+import { Building2, LogOut, ArrowRight, TrendingUp, Users, DollarSign, Percent, MapPin, Star, Plus, Trash2, Edit, X, Save } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const Properties = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-
-  const properties = [
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingProperty, setEditingProperty] = useState(null);
+  const [properties, setProperties] = useState([
     { 
       id: '1', 
       name: 'Grand Hotel Luxo', 
@@ -69,7 +70,46 @@ const Properties = () => {
       rating: 4.4,
       trend: 'down'
     }
-  ];
+  ]);
+
+  const [newProperty, setNewProperty] = useState({
+    name: '',
+    category: 'Luxo',
+    uh: '',
+    city: '',
+    address: '',
+    image: '',
+    rating: 4.0
+  });
+
+  const handleCreateProperty = () => {
+    const property = {
+      id: (properties.length + 1).toString(),
+      ...newProperty,
+      uh: parseInt(newProperty.uh),
+      revpar: Math.random() * 200 + 100,
+      occupancy: Math.random() * 30 + 60,
+      adr: Math.random() * 200 + 200,
+      revenue: Math.random() * 300000 + 100000,
+      trend: Math.random() > 0.5 ? 'up' : 'down'
+    };
+    
+    setProperties([...properties, property]);
+    setNewProperty({
+      name: '',
+      category: 'Luxo',
+      uh: '',
+      city: '',
+      address: '',
+      image: '',
+      rating: 4.0
+    });
+    setShowCreateModal(false);
+  };
+
+  const handleDeleteProperty = (id) => {
+    setProperties(properties.filter(p => p.id !== id));
+  };
 
   const getTrendIcon = (trend) => {
     switch(trend) {
@@ -144,9 +184,18 @@ const Properties = () => {
       <main className="p-6">
         <div className="max-w-7xl mx-auto">
           {/* Welcome Section */}
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-white mb-2">Suas Propriedades</h2>
-            <p className="text-slate-400">Selecione uma propriedade para acessar os módulos de Revenue Management</p>
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h2 className="text-3xl font-bold text-white mb-2">Suas Propriedades</h2>
+              <p className="text-slate-400">Selecione uma propriedade para acessar os módulos de Revenue Management</p>
+            </div>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              Nova Propriedade
+            </button>
           </div>
 
           {/* Properties Grid */}
@@ -154,8 +203,7 @@ const Properties = () => {
             {properties.map((property) => (
               <div 
                 key={property.id}
-                className="group bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl overflow-hidden hover:bg-slate-700/50 transition-all duration-300 cursor-pointer"
-                onClick={() => navigate(`/rms/${property.id}`)}
+                className="group bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl overflow-hidden hover:bg-slate-700/50 transition-all duration-300 relative"
               >
                 {/* Property Image */}
                 <div className="relative h-48 overflow-hidden">
@@ -169,16 +217,28 @@ const Properties = () => {
                       {property.category}
                     </span>
                   </div>
-                  <div className="absolute top-4 right-4">
+                  <div className="absolute top-4 right-4 flex gap-2">
                     <div className="bg-slate-900/80 backdrop-blur-sm rounded-lg p-2">
                       {getTrendIcon(property.trend)}
                     </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteProperty(property.id);
+                      }}
+                      className="bg-red-600/80 backdrop-blur-sm rounded-lg p-2 hover:bg-red-700/80 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4 text-white" />
+                    </button>
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent" />
                 </div>
 
                 {/* Property Info */}
-                <div className="p-6">
+                <div 
+                  className="p-6 cursor-pointer"
+                  onClick={() => navigate(`/rms/${property.id}`)}
+                >
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <h3 className="text-xl font-bold text-white mb-1">{property.name}</h3>
@@ -296,6 +356,111 @@ const Properties = () => {
           </div>
         </div>
       </main>
+
+      {/* Create Property Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-slate-800 rounded-2xl p-8 max-w-md w-full mx-4 border border-slate-700">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white">Nova Propriedade</h3>
+              <button 
+                onClick={() => setShowCreateModal(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Nome</label>
+                <input
+                  type="text"
+                  value={newProperty.name}
+                  onChange={(e) => setNewProperty({...newProperty, name: e.target.value})}
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                  placeholder="Nome da propriedade"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Categoria</label>
+                <select
+                  value={newProperty.category}
+                  onChange={(e) => setNewProperty({...newProperty, category: e.target.value})}
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="Luxo">Luxo</option>
+                  <option value="Boutique">Boutique</option>
+                  <option value="Resort">Resort</option>
+                  <option value="Corporativo">Corporativo</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Unidades Habitacionais</label>
+                <input
+                  type="number"
+                  value={newProperty.uh}
+                  onChange={(e) => setNewProperty({...newProperty, uh: e.target.value})}
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                  placeholder="Número de quartos"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Cidade</label>
+                <input
+                  type="text"
+                  value={newProperty.city}
+                  onChange={(e) => setNewProperty({...newProperty, city: e.target.value})}
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                  placeholder="Cidade"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Endereço</label>
+                <input
+                  type="text"
+                  value={newProperty.address}
+                  onChange={(e) => setNewProperty({...newProperty, address: e.target.value})}
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                  placeholder="Endereço completo"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">URL da Imagem</label>
+                <input
+                  type="url"
+                  value={newProperty.image}
+                  onChange={(e) => setNewProperty({...newProperty, image: e.target.value})}
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                  placeholder="https://exemplo.com/imagem.jpg"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={handleCreateProperty}
+                disabled={!newProperty.name || !newProperty.uh || !newProperty.city}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 text-white rounded-lg transition-colors"
+              >
+                <Save className="w-4 h-4 mr-2 inline" />
+                Criar Propriedade
+              </button>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
