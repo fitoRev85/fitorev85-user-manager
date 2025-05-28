@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,6 +9,7 @@ import Properties from "./pages/Properties";
 import UserManagement from "./pages/UserManagement";
 import RMSForecastPace from "./pages/RMSForecastPace";
 import NotFound from "./pages/NotFound";
+import Financial from "./pages/Financial";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +34,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<Properties />} />
       <Route path="/rms/:propertyId" element={<RMSForecastPace />} />
+      <Route path="/financial" element={<Financial />} />
       {user.categoria === 'admin' && (
         <Route path="/users" element={<UserManagement />} />
       )}
