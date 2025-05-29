@@ -6,6 +6,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useProperties } from '@/hooks/useProperties';
 
 // Import dos novos componentes
 import ForecastDashboard from '@/components/forecast/ForecastDashboard';
@@ -20,53 +21,8 @@ const RMSForecastPace = () => {
   const { propertyId } = useParams();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedProperty, setSelectedProperty] = useState(propertyId || '1');
-
-  const properties = [
-    { 
-      id: '1', 
-      name: 'Grand Hotel Luxo', 
-      category: 'Luxo', 
-      uh: 120, 
-      city: 'São Paulo',
-      image: 'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=400&h=250&fit=crop',
-      revpar: 285.50,
-      occupancy: 78,
-      adr: 365
-    },
-    { 
-      id: '2', 
-      name: 'Boutique Charm', 
-      category: 'Boutique', 
-      uh: 45, 
-      city: 'Rio de Janeiro',
-      image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&h=250&fit=crop',
-      revpar: 195.30,
-      occupancy: 85,
-      adr: 230
-    },
-    { 
-      id: '3', 
-      name: 'Resort Paradise', 
-      category: 'Resort', 
-      uh: 200, 
-      city: 'Florianópolis',
-      image: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=400&h=250&fit=crop',
-      revpar: 220.75,
-      occupancy: 82,
-      adr: 269
-    },
-    { 
-      id: '4', 
-      name: 'Business Center', 
-      category: 'Corporativo', 
-      uh: 80, 
-      city: 'Brasília',
-      image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&h=250&fit=crop',
-      revpar: 165.40,
-      occupancy: 72,
-      adr: 230
-    }
-  ];
+  
+  const { properties, getProperty } = useProperties();
 
   useEffect(() => {
     if (propertyId) {
@@ -74,7 +30,7 @@ const RMSForecastPace = () => {
     }
   }, [propertyId]);
 
-  const getCurrentProperty = () => properties.find(p => p.id === selectedProperty);
+  const getCurrentProperty = () => getProperty(selectedProperty);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">

@@ -1,43 +1,19 @@
+
 import React, { useState } from 'react';
 import { UserPlus, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { UserCard } from '@/components/UserCard';
 import { UserModal } from '@/components/UserModal';
-import { User, categoriaUsuarios } from '@/types/user';
+import { User } from '@/types/user';
 import { useNavigate } from 'react-router-dom';
+import { useUsers } from '@/hooks/useUsers';
+import { useToast } from '@/hooks/use-toast';
 
 export default function UserManagement() {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { users, addUser, updateUser, deleteUser } = useUsers();
   
-  const [usuarios, setUsuarios] = useState<User[]>([
-    {
-      id: '1',
-      nome: 'João Silva',
-      email: 'joao@fitorev85.com',
-      telefone: '(11) 99999-9999',
-      cargo: 'Diretor Geral',
-      categoria: 'admin',
-      permissoes: categoriaUsuarios.admin.permissoes,
-      propriedadesAcesso: ['prop1', 'prop2'],
-      ativo: true,
-      dataCriacao: new Date('2024-01-15'),
-      ultimoAcesso: new Date()
-    },
-    {
-      id: '2',
-      nome: 'Maria Santos',
-      email: 'maria@fitorev85.com',
-      telefone: '(11) 88888-8888',
-      cargo: 'Revenue Manager',
-      categoria: 'revenue_manager',
-      permissoes: categoriaUsuarios.revenue_manager.permissoes,
-      propriedadesAcesso: ['prop1'],
-      ativo: true,
-      dataCriacao: new Date('2024-02-01'),
-      ultimoAcesso: new Date()
-    }
-  ]);
-
   const [modalAberto, setModalAberto] = useState(false);
   const [usuarioEditando, setUsuarioEditando] = useState<User | undefined>();
 
@@ -48,25 +24,31 @@ export default function UserManagement() {
 
   const salvarUsuario = (formData: Partial<User>) => {
     if (usuarioEditando) {
-      setUsuarios(usuarios.map(u => u.id === usuarioEditando.id ? 
-        { ...u, ...formData, permissoes: categoriaUsuarios[formData.categoria!].permissoes } : u
-      ));
+      updateUser(usuarioEditando.id, formData);
+      toast({
+        title: "Usuário atualizado",
+        description: `${formData.nome} foi atualizado com sucesso.`,
+      });
     } else {
-      const novoUsuario: User = {
-        ...formData as User,
-        id: Date.now().toString(),
-        permissoes: categoriaUsuarios[formData.categoria!].permissoes,
-        propriedadesAcesso: [],
-        dataCriacao: new Date(),
-        ultimoAcesso: undefined
-      };
-      setUsuarios([...usuarios, novoUsuario]);
+      const newUser = addUser(formData);
+      toast({
+        title: "Usuário criado",
+        description: `${newUser.nome} foi criado com sucesso.`,
+      });
     }
     setModalAberto(false);
   };
 
   const excluirUsuario = (id: string) => {
-    setUsuarios(usuarios.filter(u => u.id !== id));
+    const usuario = users.find(u => u.id === id);
+    if (window.confirm(`Tem certeza que deseja excluir o usuário "${usuario?.nome}"?`)) {
+      deleteUser(id);
+      toast({
+        title: "Usuário excluído",
+        description: `${usuario?.nome} foi removido com sucesso.`,
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -77,14 +59,14 @@ export default function UserManagement() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate('/')}
               className="text-slate-400 hover:text-white hover:bg-slate-700/50"
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
               <h2 className="text-2xl font-bold text-white">Gestão de Usuários</h2>
-              <p className="text-slate-400">Gerencie usuários e suas permissões</p>
+              <p className="text-slate-400">Gerencie usuários e suas permissões ({users.length} usuários)</p>
             </div>
           </div>
           <Button
@@ -97,7 +79,7 @@ export default function UserManagement() {
         </div>
 
         <div className="grid gap-4">
-          {usuarios.map((usuario) => (
+          {users.map((usuario) => (
             <UserCard
               key={usuario.id}
               user={usuario}

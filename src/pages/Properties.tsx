@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,18 +9,16 @@ import { CreateProperty } from '@/components/CreateProperty';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { useProperties } from '@/hooks/useProperties';
 
 const Properties = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [properties, setProperties] = useState([
-    { id: 1, name: 'Resort A', location: 'Beachfront', rooms: 150 },
-    { id: 2, name: 'Hotel B', location: 'Downtown', rooms: 220 },
-    { id: 3, name: 'Apartments C', location: 'Suburb', rooms: 85 },
-  ]);
-  const [search, setSearch] = useState('');
   const { user } = useAuth();
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  
+  const { properties, addProperty, deleteProperty } = useProperties();
 
   const filteredProperties = properties.filter(property =>
     property.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -28,14 +26,9 @@ const Properties = () => {
   );
 
   const handleCreateProperty = (newProperty: { name: string; location: string; rooms: string; description: string }) => {
-    const property = {
-      id: Date.now(), // Simple ID generation
-      name: newProperty.name,
-      location: newProperty.location,
-      rooms: parseInt(newProperty.rooms),
-    };
+    console.log('Creating property:', newProperty);
     
-    setProperties(prev => [...prev, property]);
+    const property = addProperty(newProperty);
     setIsCreateModalOpen(false);
     
     toast({
@@ -44,11 +37,11 @@ const Properties = () => {
     });
   };
 
-  const handleDeleteProperty = (propertyId: number) => {
+  const handleDeleteProperty = (propertyId: string) => {
     const propertyToDelete = properties.find(p => p.id === propertyId);
     
     if (window.confirm(`Tem certeza que deseja excluir a propriedade "${propertyToDelete?.name}"?`)) {
-      setProperties(prev => prev.filter(p => p.id !== propertyId));
+      deleteProperty(propertyId);
       
       toast({
         title: "Propriedade excluída",
@@ -77,6 +70,14 @@ const Properties = () => {
                 <DollarSign className="w-4 h-4 mr-2" />
                 Módulo Financeiro
               </Button>
+              {user?.categoria === 'admin' && (
+                <Button 
+                  onClick={() => navigate('/users')}
+                  className="bg-purple-600 hover:bg-purple-700"
+                >
+                  Gerenciar Usuários
+                </Button>
+              )}
               <Button onClick={() => setIsCreateModalOpen(true)} className="bg-blue-600 hover:bg-blue-700">
                 <Plus className="w-4 h-4 mr-2" />
                 Nova Propriedade
@@ -99,7 +100,7 @@ const Properties = () => {
         {/* Table */}
         <Card className="bg-gray-900 border-gray-800">
           <CardHeader>
-            <CardTitle className="text-white">Lista de Propriedades</CardTitle>
+            <CardTitle className="text-white">Lista de Propriedades ({filteredProperties.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
