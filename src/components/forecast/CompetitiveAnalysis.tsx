@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Upload, Download, Eye, TrendingUp, Target } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, ScatterChart, Scatter } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, ScatterChart, Scatter, Cell } from 'recharts';
 
 const CompetitiveAnalysis = () => {
   const [competitorData, setCompetitorData] = useState([
@@ -55,6 +54,10 @@ const CompetitiveAnalysis = () => {
       case 'low': return 'text-red-400';
       default: return 'text-slate-400';
     }
+  };
+
+  const getBarColor = (entry) => {
+    return entry.name === 'Nossa Propriedade' ? '#3b82f6' : '#64748b';
   };
 
   return (
@@ -236,11 +239,11 @@ const CompetitiveAnalysis = () => {
                   color: '#f1f5f9'
                 }} 
               />
-              <Bar 
-                dataKey="revpar" 
-                fill={(entry) => entry.name === 'Nossa Propriedade' ? '#3b82f6' : '#64748b'}
-                name="RevPAR"
-              />
+              <Bar dataKey="revpar" name="RevPAR">
+                {competitorData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={getBarColor(entry)} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </CardContent>

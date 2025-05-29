@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -354,16 +353,20 @@ const AlertsSystem = () => {
                     className="bg-slate-800 border-slate-600 text-white"
                     onKeyPress={(e) => {
                       if (e.key === 'Enter') {
-                        addEmailRecipient(e.target.value);
-                        e.target.value = '';
+                        const target = e.target as HTMLInputElement;
+                        addEmailRecipient(target.value);
+                        target.value = '';
                       }
                     }}
                   />
                   <Button
                     onClick={(e) => {
-                      const input = e.target.previousElementSibling;
-                      addEmailRecipient(input.value);
-                      input.value = '';
+                      const button = e.target as HTMLButtonElement;
+                      const input = button.previousElementSibling as HTMLInputElement;
+                      if (input) {
+                        addEmailRecipient(input.value);
+                        input.value = '';
+                      }
                     }}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
