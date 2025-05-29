@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,9 +8,11 @@ import { Plus, Edit, Trash2, DollarSign } from 'lucide-react';
 import { CreateProperty } from '@/components/CreateProperty';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 
 const Properties = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [properties, setProperties] = useState([
     { id: 1, name: 'Resort A', location: 'Beachfront', rooms: 150 },
@@ -23,6 +26,37 @@ const Properties = () => {
     property.name.toLowerCase().includes(search.toLowerCase()) ||
     property.location.toLowerCase().includes(search.toLowerCase())
   );
+
+  const handleCreateProperty = (newProperty: { name: string; location: string; rooms: string; description: string }) => {
+    const property = {
+      id: Date.now(), // Simple ID generation
+      name: newProperty.name,
+      location: newProperty.location,
+      rooms: parseInt(newProperty.rooms),
+    };
+    
+    setProperties(prev => [...prev, property]);
+    setIsCreateModalOpen(false);
+    
+    toast({
+      title: "Propriedade criada",
+      description: `${property.name} foi adicionada com sucesso.`,
+    });
+  };
+
+  const handleDeleteProperty = (propertyId: number) => {
+    const propertyToDelete = properties.find(p => p.id === propertyId);
+    
+    if (window.confirm(`Tem certeza que deseja excluir a propriedade "${propertyToDelete?.name}"?`)) {
+      setProperties(prev => prev.filter(p => p.id !== propertyId));
+      
+      toast({
+        title: "Propriedade excluída",
+        description: `${propertyToDelete?.name} foi removida com sucesso.`,
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
@@ -88,7 +122,12 @@ const Properties = () => {
                         <Button variant="ghost" size="sm" className="text-blue-400 hover:text-blue-300">
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-red-400 hover:text-red-300"
+                          onClick={() => handleDeleteProperty(property.id)}
+                        >
                           <Trash2 className="w-4 h-4" />
                         </Button>
                         <Button
@@ -109,7 +148,11 @@ const Properties = () => {
         </Card>
 
         {/* Create Modal */}
-        <CreateProperty isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
+        <CreateProperty 
+          isOpen={isCreateModalOpen} 
+          onClose={() => setIsCreateModalOpen(false)}
+          onSubmit={handleCreateProperty}
+        />
       </div>
     </div>
   );
