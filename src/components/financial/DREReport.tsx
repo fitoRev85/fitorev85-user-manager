@@ -10,32 +10,37 @@ import { TrendingUp, TrendingDown, Download, Edit, Plus, AlertCircle } from 'luc
 const DREReport = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('current');
 
+  // Dados DRE realistas para Hotel Seaside Resort (150 quartos)
   const dreData = {
     receitas: {
-      hospedagem: 750000,
-      restaurante: 45000,
-      eventos: 35000,
-      outros: 20000,
-      total: 850000
+      hospedagem: 2280000,    // 80% da receita total
+      restaurante: 285000,    // 10% da receita
+      eventos: 171000,        // 6% da receita
+      spa: 57000,            // 2% da receita
+      outros: 57000,         // 2% da receita (lavanderia, telefone, etc)
+      total: 2850000
     },
     custosVariaveis: {
-      comissoes: 85000,
-      amenities: 15000,
-      lavanderia: 12000,
-      outros: 8000,
-      total: 120000
+      comissoes: 342000,      // 12% da receita (OTAs principalmente)
+      amenities: 57000,       // 2% da receita
+      lavanderia: 42750,      // 1.5% da receita
+      alimentacao: 85500,     // 3% da receita (F&B cost)
+      outros: 28500,          // 1% da receita
+      total: 555750
     },
     custosFixos: {
-      pessoal: 280000,
-      energia: 45000,
-      agua: 18000,
-      telefone: 8000,
-      internet: 12000,
-      seguros: 15000,
-      manutencao: 35000,
-      marketing: 25000,
-      administrativo: 42000,
-      total: 480000
+      pessoal: 1140000,       // 40% da receita
+      energia: 171000,        // 6% da receita
+      agua: 57000,           // 2% da receita
+      telefone: 14250,       // 0.5% da receita
+      internet: 28500,       // 1% da receita
+      seguros: 85500,        // 3% da receita
+      manutencao: 142500,    // 5% da receita
+      marketing: 114000,     // 4% da receita
+      administrativo: 171000, // 6% da receita
+      depreciacoes: 85500,   // 3% da receita
+      impostos: 114000,      // 4% da receita
+      total: 2123250
     }
   };
 
@@ -53,6 +58,7 @@ const DREReport = () => {
     { categoria: 'Hospedagem', valor: dreData.receitas.hospedagem, percentual: (dreData.receitas.hospedagem / dreData.receitas.total) * 100 },
     { categoria: 'Restaurante', valor: dreData.receitas.restaurante, percentual: (dreData.receitas.restaurante / dreData.receitas.total) * 100 },
     { categoria: 'Eventos', valor: dreData.receitas.eventos, percentual: (dreData.receitas.eventos / dreData.receitas.total) * 100 },
+    { categoria: 'Spa', valor: dreData.receitas.spa, percentual: (dreData.receitas.spa / dreData.receitas.total) * 100 },
     { categoria: 'Outros', valor: dreData.receitas.outros, percentual: (dreData.receitas.outros / dreData.receitas.total) * 100 }
   ];
 
@@ -62,7 +68,9 @@ const DREReport = () => {
     { categoria: 'Energia', valor: dreData.custosFixos.energia, tipo: 'Fixo', percentual: (dreData.custosFixos.energia / dreData.receitas.total) * 100 },
     { categoria: 'Administrativo', valor: dreData.custosFixos.administrativo, tipo: 'Fixo', percentual: (dreData.custosFixos.administrativo / dreData.receitas.total) * 100 },
     { categoria: 'Manutenção', valor: dreData.custosFixos.manutencao, tipo: 'Fixo', percentual: (dreData.custosFixos.manutencao / dreData.receitas.total) * 100 },
-    { categoria: 'Marketing', valor: dreData.custosFixos.marketing, tipo: 'Fixo', percentual: (dreData.custosFixos.marketing / dreData.receitas.total) * 100 }
+    { categoria: 'Marketing', valor: dreData.custosFixos.marketing, tipo: 'Fixo', percentual: (dreData.custosFixos.marketing / dreData.receitas.total) * 100 },
+    { categoria: 'Impostos', valor: dreData.custosFixos.impostos, tipo: 'Fixo', percentual: (dreData.custosFixos.impostos / dreData.receitas.total) * 100 },
+    { categoria: 'Alimentação F&B', valor: dreData.custosVariaveis.alimentacao, tipo: 'Variável', percentual: (dreData.custosVariaveis.alimentacao / dreData.receitas.total) * 100 }
   ];
 
   return (
@@ -72,7 +80,7 @@ const DREReport = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white mb-2">DRE - Demonstrativo de Resultado</h2>
-          <p className="text-gray-400">Análise detalhada de receitas, custos e resultado operacional</p>
+          <p className="text-gray-400">Análise detalhada de receitas, custos e resultado operacional - Hotel Seaside Resort</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" className="border-gray-700 text-gray-300 hover:bg-gray-800">
@@ -188,7 +196,7 @@ const DREReport = () => {
                   nameKey="categoria"
                 >
                   {receitasDetalhadas.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={['#10B981', '#3B82F6', '#F59E0B', '#EF4444'][index]} />
+                    <Cell key={`cell-${index}`} fill={['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6'][index]} />
                   ))}
                 </Pie>
                 <Tooltip 
@@ -210,7 +218,7 @@ const DREReport = () => {
       <Card className="bg-gray-900 border-gray-800">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-white">DRE Detalhado</CardTitle>
+            <CardTitle className="text-white">DRE Detalhado - Hotel Seaside Resort</CardTitle>
             <div className="flex gap-2">
               <Badge variant="outline" className="border-green-500 text-green-400">
                 Período: Junho 2024
@@ -226,7 +234,7 @@ const DREReport = () => {
             
             {/* Receitas */}
             <div>
-              <h3 className="text-lg font-semibold text-green-400 mb-3">RECEITAS</h3>
+              <h3 className="text-lg font-semibold text-green-400 mb-3">RECEITAS OPERACIONAIS</h3>
               <Table>
                 <TableHeader>
                   <TableRow className="border-gray-800">
@@ -260,7 +268,7 @@ const DREReport = () => {
 
             {/* Custos */}
             <div>
-              <h3 className="text-lg font-semibold text-red-400 mb-3">CUSTOS E DESPESAS</h3>
+              <h3 className="text-lg font-semibold text-red-400 mb-3">CUSTOS E DESPESAS OPERACIONAIS</h3>
               <Table>
                 <TableHeader>
                   <TableRow className="border-gray-800">
@@ -313,7 +321,7 @@ const DREReport = () => {
                     R$ {lucroOperacional.toLocaleString()}
                   </p>
                   <p className="text-sm text-gray-400">
-                    Margem: {margemOperacional.toFixed(1)}%
+                    Margem: {margemOperacional.toFixed(1)}% | RevPAR: R$ {(dreData.receitas.hospedagem / 150 / 30).toFixed(0)}
                   </p>
                 </div>
               </div>

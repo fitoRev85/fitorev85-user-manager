@@ -5,44 +5,56 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, Download, Plus, Edit, Trash2, Calculator, FileText, CreditCard } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, Download, Plus, Edit, Trash2, Calculator, FileText, CreditCard, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import DREReport from '@/components/financial/DREReport';
 import OTAManagement from '@/components/financial/OTAManagement';
 import CostAnalysis from '@/components/financial/CostAnalysis';
 
 const Financial = () => {
   const [activeTab, setActiveTab] = useState('dre');
+  const navigate = useNavigate();
 
-  // Dados financeiros resumidos
+  // Dados financeiros realistas para um hotel de médio porte (150 quartos)
   const financialSummary = {
-    revenue: 850000,
-    costs: 680000,
-    profit: 170000,
+    revenue: 2850000, // ~R$ 19,000/quarto/mês
+    costs: 2280000,
+    profit: 570000,
     margin: 20,
-    otaCommissions: 85000,
-    operationalCosts: 450000,
-    fixedCosts: 145000
+    otaCommissions: 342000, // ~12% da receita total
+    operationalCosts: 1520000,
+    fixedCosts: 760000
   };
 
   const monthlyData = [
-    { month: 'Jan', revenue: 750000, costs: 600000, profit: 150000 },
-    { month: 'Fev', revenue: 820000, costs: 650000, profit: 170000 },
-    { month: 'Mar', revenue: 880000, costs: 700000, profit: 180000 },
-    { month: 'Abr', revenue: 760000, costs: 580000, profit: 180000 },
-    { month: 'Mai', revenue: 950000, costs: 720000, profit: 230000 },
-    { month: 'Jun', revenue: 850000, costs: 680000, profit: 170000 }
+    { month: 'Jan', revenue: 2200000, costs: 1800000, profit: 400000 }, // Baixa temporada
+    { month: 'Fev', revenue: 2100000, costs: 1750000, profit: 350000 }, // Baixa temporada
+    { month: 'Mar', revenue: 2400000, costs: 1950000, profit: 450000 }, // Início alta temporada
+    { month: 'Abr', revenue: 2650000, costs: 2100000, profit: 550000 }, // Alta temporada
+    { month: 'Mai', revenue: 2850000, costs: 2200000, profit: 650000 }, // Pico temporada
+    { month: 'Jun', revenue: 2950000, costs: 2280000, profit: 670000 }  // Pico temporada
   ];
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
       <div className="max-w-7xl mx-auto p-6">
         
-        {/* Header */}
+        {/* Header com Navegação */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-2">Módulo Financeiro</h1>
-              <p className="text-gray-400">Gestão completa de receitas, custos e análises financeiras</p>
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                onClick={() => navigate('/')}
+                className="text-gray-400 hover:text-white hover:bg-gray-800"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Voltar
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold text-white mb-2">Módulo Financeiro</h1>
+                <p className="text-gray-400">Gestão completa de receitas, custos e análises financeiras - Hotel Seaside Resort (150 quartos)</p>
+              </div>
             </div>
             <div className="flex gap-3">
               <Button variant="outline" className="border-gray-700 text-gray-300 hover:bg-gray-800">
@@ -57,7 +69,7 @@ const Financial = () => {
           </div>
         </div>
 
-        {/* Cards de Resumo */}
+        {/* Cards de Resumo com dados reais */}
         <div className="grid grid-cols-4 gap-4 mb-8">
           <Card className="bg-gray-900 border-gray-800">
             <CardContent className="p-6">
@@ -69,7 +81,7 @@ const Financial = () => {
                   </p>
                   <div className="flex items-center gap-1 mt-1">
                     <TrendingUp className="w-4 h-4 text-green-400" />
-                    <span className="text-xs text-green-400">+12% vs mês anterior</span>
+                    <span className="text-xs text-green-400">+8.5% vs mês anterior</span>
                   </div>
                 </div>
                 <DollarSign className="w-8 h-8 text-green-400" />
@@ -87,7 +99,7 @@ const Financial = () => {
                   </p>
                   <div className="flex items-center gap-1 mt-1">
                     <TrendingUp className="w-4 h-4 text-red-400" />
-                    <span className="text-xs text-red-400">+5% vs mês anterior</span>
+                    <span className="text-xs text-red-400">+3.2% vs mês anterior</span>
                   </div>
                 </div>
                 <AlertTriangle className="w-8 h-8 text-red-400" />
@@ -105,7 +117,7 @@ const Financial = () => {
                   </p>
                   <div className="flex items-center gap-1 mt-1">
                     <TrendingUp className="w-4 h-4 text-blue-400" />
-                    <span className="text-xs text-blue-400">+25% vs mês anterior</span>
+                    <span className="text-xs text-blue-400">+18.7% vs mês anterior</span>
                   </div>
                 </div>
                 <Calculator className="w-8 h-8 text-blue-400" />
@@ -123,7 +135,7 @@ const Financial = () => {
                   </p>
                   <div className="flex items-center gap-1 mt-1">
                     <TrendingUp className="w-4 h-4 text-purple-400" />
-                    <span className="text-xs text-purple-400">+2.5% vs mês anterior</span>
+                    <span className="text-xs text-purple-400">+1.8% vs mês anterior</span>
                   </div>
                 </div>
                 <FileText className="w-8 h-8 text-purple-400" />
@@ -132,10 +144,10 @@ const Financial = () => {
           </Card>
         </div>
 
-        {/* Gráfico de Evolução */}
+        {/* Gráfico de Evolução com dados realistas */}
         <Card className="bg-gray-900 border-gray-800 mb-8">
           <CardHeader>
-            <CardTitle className="text-white">Evolução Financeira Mensal</CardTitle>
+            <CardTitle className="text-white">Evolução Financeira Mensal - Temporada 2024</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
