@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
-import { categoriaUsuarios } from '@/types/user';
 
 export function LoginForm() {
   const [email, setEmail] = useState('');
@@ -18,17 +17,14 @@ export function LoginForm() {
     e.preventDefault();
     setLoading(true);
     
-    // Simular login
-    setTimeout(() => {
-      login({
-        id: '1',
-        nome: 'João Silva',
-        email: email,
-        categoria: 'admin',
-        permissoes: categoriaUsuarios.admin.permissoes
-      });
-      setLoading(false);
-    }, 1000);
+    // Chamar login com email e senha
+    const loginSuccess = login(email, senha);
+    
+    if (!loginSuccess) {
+      console.log('Login failed');
+    }
+    
+    setLoading(false);
   };
 
   return (
