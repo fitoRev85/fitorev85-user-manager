@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  ArrowLeft, Building2, LogOut, Brain, Target, Bell, Database, BarChart3, Calendar
+  ArrowLeft, Building2, LogOut, Brain, Target, Bell, Database, BarChart3, Calendar, FileText
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';

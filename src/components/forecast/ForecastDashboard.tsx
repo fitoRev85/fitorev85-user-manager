@@ -2,55 +2,197 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { TrendingUp, Calendar, Users, DollarSign, AlertTriangle, CheckCircle } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ComposedChart } from 'recharts';
+import { TrendingUp, Calendar, Users, DollarSign, AlertTriangle, CheckCircle, Target, Activity } from 'lucide-react';
+import { useMetas } from '@/hooks/useMetas';
+import { useProperties } from '@/hooks/useProperties';
 
 const ForecastDashboard = () => {
+  const [propriedadeSelecionada, setPropriedadeSelecionada] = useState('1');
   const [kpiData, setKpiData] = useState({
     currentOccupancy: 78.5,
     forecast30Days: 82.3,
     currentRevpar: 225.50,
     forecastRevpar: 248.20,
     totalBookings: 1247,
-    cancellationRate: 8.2
+    cancellationRate: 8.2,
+    receitaAtual: 45000,
+    metaMesAtual: 50000
   });
 
-  const [occupancyTrend, setOccupancyTrend] = useState([
-    { date: '2024-01-01', historical: 75, predicted: 78, actual: 76 },
-    { date: '2024-01-02', historical: 78, predicted: 80, actual: 79 },
-    { date: '2024-01-03', historical: 80, predicted: 82, actual: 81 },
-    { date: '2024-01-04', historical: 82, predicted: 85, actual: 83 },
-    { date: '2024-01-05', historical: 85, predicted: 87, actual: 86 },
-    { date: '2024-01-06', historical: 88, predicted: 90, actual: 89 },
-    { date: '2024-01-07', historical: 90, predicted: 88, actual: 87 }
-  ]);
+  const { obterMetasPropriedade, obterMetaPeriodo } = useMetas();
+  const { properties } = useProperties();
 
-  const [alerts, setAlerts] = useState([
-    { id: 1, type: 'warning', message: 'Ocupação prevista abaixo da meta para próxima semana', severity: 'medium' },
-    { id: 2, type: 'success', message: 'RevPAR superando previsão em 5%', severity: 'low' },
-    { id: 3, type: 'error', message: 'Taxa de cancelamento acima do normal', severity: 'high' }
-  ]);
-
-  const [roomTypeData, setRoomTypeData] = useState([
-    { type: 'Standard', occupancy: 85, adr: 180, forecast: 88 },
-    { type: 'Superior', occupancy: 78, adr: 220, forecast: 82 },
-    { type: 'Deluxe', occupancy: 72, adr: 280, forecast: 75 },
-    { type: 'Suite', occupancy: 65, adr: 420, forecast: 70 }
-  ]);
-
-  const getAlertIcon = (type: string) => {
-    switch (type) {
-      case 'error': return <AlertTriangle className="w-4 h-4 text-red-400" />;
-      case 'warning': return <AlertTriangle className="w-4 h-4 text-yellow-400" />;
-      case 'success': return <CheckCircle className="w-4 h-4 text-green-400" />;
-      default: return <AlertTriangle className="w-4 h-4 text-blue-400" />;
+  // Dados comparativos (Real vs Meta vs ML Forecast)
+  const [dadosComparativos, setDadosComparativos] = useState([
+    { 
+      mes: 'Jan', 
+      real: 45000, 
+      meta: 50000, 
+      mlForecast: 48000,
+      mesAno: '2025-01'
+    },
+    { 
+      mes: 'Fev', 
+      real: 52000, 
+      meta: 55000, 
+      mlForecast: 53000,
+      mesAno: '2025-02'
+    },
+    { 
+      mes: 'Mar', 
+      real: 48000, 
+      meta: 52000, 
+      mlForecast: 50000,
+      mesAno: '2025-03'
+    },
+    { 
+      mes: 'Abr', 
+      real: 58000, 
+      meta: 60000, 
+      mlForecast: 59000,
+      mesAno: '2025-04'
+    },
+    { 
+      mes: 'Mai', 
+      real: 0, 
+      meta: 62000, 
+      mlForecast: 61000,
+      mesAno: '2025-05'
+    },
+    { 
+      mes: 'Jun', 
+      real: 0, 
+      meta: 65000, 
+      mlForecast: 63000,
+      mesAno: '2025-06'
     }
+  ]);
+
+  const [paceData, setPaceData] = useState({
+    receitaAtual: 45000,
+    diasDecorridos: 15,
+    diasNoMes: 31,
+    metaMes: 50000,
+    paceCalculado: 0,
+    percentualMeta: 0,
+    status: 'warning'
+  });
+
+  useEffect(() => {
+    calcularPace();
+    carregarDadosComparativos();
+  }, [propriedadeSelecionada]);
+
+  const calcularPace = () => {
+    const { receitaAtual, diasDecorridos, diasNoMes, metaMes } = paceData;
+    
+    if (diasDecorridos > 0) {
+      const paceCalculado = (receitaAtual / diasDecorridos) * diasNoMes;
+      const percentualMeta = metaMes > 0 ? (paceCalculado / metaMes) * 100 : 0;
+      
+      let status = 'error';
+      if (percentualMeta >= 100) status = 'success';
+      else if (percentualMeta >= 90) status = 'warning';
+      
+      setPaceData(prev => ({
+        ...prev,
+        paceCalculado,
+        percentualMeta,
+        status
+      }));
+    }
+  };
+
+  const carregarDadosComparativos = () => {
+    // Carregar metas reais do sistema
+    const anoAtual = new Date().getFullYear();
+    const metas = obterMetasPropriedade(propriedadeSelecionada, anoAtual);
+    
+    // Atualizar dados comparativos com metas reais
+    const novosComparativos = dadosComparativos.map(item => {
+      const metaEncontrada = metas.find(meta => 
+        meta.mesAno === item.mesAno && meta.tipoMeta === 'receita'
+      );
+      
+      return {
+        ...item,
+        meta: metaEncontrada ? metaEncontrada.valorMeta : item.meta
+      };
+    });
+    
+    setDadosComparativos(novosComparativos);
+  };
+
+  const obterCorStatus = (status: string) => {
+    switch (status) {
+      case 'success': return 'text-green-400';
+      case 'warning': return 'text-yellow-400';
+      case 'error': return 'text-red-400';
+      default: return 'text-slate-400';
+    }
+  };
+
+  const obterIconeStatus = (status: string) => {
+    switch (status) {
+      case 'success': return <CheckCircle className="w-5 h-5 text-green-400" />;
+      case 'warning': return <AlertTriangle className="w-5 h-5 text-yellow-400" />;
+      case 'error': return <AlertTriangle className="w-5 h-5 text-red-400" />;
+      default: return <Activity className="w-5 h-5 text-slate-400" />;
+    }
+  };
+
+  const formatarValor = (valor: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 0
+    }).format(valor);
+  };
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-slate-800 border border-slate-600 rounded-lg p-3 shadow-lg">
+          <p className="text-white font-medium">{label}</p>
+          {payload.map((entry: any, index: number) => (
+            <p key={index} style={{ color: entry.color }} className="text-sm">
+              {entry.dataKey === 'real' && 'Real: '}
+              {entry.dataKey === 'meta' && 'Meta: '}
+              {entry.dataKey === 'mlForecast' && 'ML Forecast: '}
+              {formatarValor(entry.value)}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
     <div className="space-y-6">
-      {/* KPIs Principais */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Seletor de Propriedade */}
+      <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-4">
+            <label className="text-slate-300 font-medium">Propriedade:</label>
+            <select 
+              value={propriedadeSelecionada} 
+              onChange={(e) => setPropriedadeSelecionada(e.target.value)}
+              className="bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-white"
+            >
+              {properties.map(property => (
+                <option key={property.id} value={property.id}>
+                  {property.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* KPIs Principais com Pace */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-slate-300">Ocupação Atual</CardTitle>
@@ -79,8 +221,23 @@ const ForecastDashboard = () => {
 
         <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-slate-300">Pace vs Meta</CardTitle>
+            <Target className="h-4 w-4 text-purple-400" />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${obterCorStatus(paceData.status)}`}>
+              {paceData.percentualMeta.toFixed(1)}%
+            </div>
+            <p className="text-xs text-slate-400">
+              Pace: <span className="text-blue-400">{formatarValor(paceData.paceCalculado)}</span>
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-slate-300">Total Reservas</CardTitle>
-            <Calendar className="h-4 w-4 text-purple-400" />
+            <Calendar className="h-4 w-4 text-orange-400" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">{kpiData.totalBookings.toLocaleString()}</div>
@@ -91,66 +248,82 @@ const ForecastDashboard = () => {
         </Card>
       </div>
 
-      {/* Alertas */}
+      {/* Alertas de Performance */}
       <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
         <CardHeader>
-          <CardTitle className="text-white">Alertas do Sistema</CardTitle>
+          <CardTitle className="text-white flex items-center gap-2">
+            {obterIconeStatus(paceData.status)}
+            Alertas de Performance
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {alerts.map((alert) => (
-              <div key={alert.id} className={`flex items-center gap-3 p-3 rounded-lg ${
-                alert.severity === 'high' ? 'bg-red-500/20 border border-red-500/30' :
-                alert.severity === 'medium' ? 'bg-yellow-500/20 border border-yellow-500/30' :
-                'bg-green-500/20 border border-green-500/30'
-              }`}>
-                {getAlertIcon(alert.type)}
-                <span className="text-slate-300">{alert.message}</span>
-              </div>
-            ))}
+          <div className={`p-4 rounded-lg border ${
+            paceData.status === 'success' ? 'bg-green-500/20 border-green-500/30' :
+            paceData.status === 'warning' ? 'bg-yellow-500/20 border-yellow-500/30' :
+            'bg-red-500/20 border-red-500/30'
+          }`}>
+            {paceData.status === 'success' && (
+              <p className="text-green-400 font-medium">
+                🎉 Excelente! O pace atual está {paceData.percentualMeta.toFixed(1)}% da meta
+              </p>
+            )}
+            {paceData.status === 'warning' && (
+              <p className="text-yellow-400 font-medium">
+                ⚠️ Atenção: Pace em {paceData.percentualMeta.toFixed(1)}% da meta - Requer atenção
+              </p>
+            )}
+            {paceData.status === 'error' && (
+              <p className="text-red-400 font-medium">
+                🚨 Crítico: Pace apenas {paceData.percentualMeta.toFixed(1)}% da meta - Ação necessária
+              </p>
+            )}
+            <div className="mt-2 text-sm text-slate-300">
+              <span>Receita atual: {formatarValor(paceData.receitaAtual)} • </span>
+              <span>Meta do mês: {formatarValor(paceData.metaMes)} • </span>
+              <span>Dias decorridos: {paceData.diasDecorridos}/{paceData.diasNoMes}</span>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Gráficos Principais */}
+      {/* Gráficos Comparativos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Gráfico Real vs Meta vs ML Forecast */}
         <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
           <CardHeader>
-            <CardTitle className="text-white">Ocupação: Histórico vs Previsão</CardTitle>
+            <CardTitle className="text-white">Real vs Meta vs ML Forecast</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={occupancyTrend}>
+              <ComposedChart data={dadosComparativos}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                <XAxis dataKey="date" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1e293b', 
-                    border: '1px solid #475569',
-                    borderRadius: '8px',
-                    color: '#f1f5f9'
-                  }} 
-                />
-                <Line type="monotone" dataKey="historical" stroke="#64748b" strokeWidth={2} name="Histórico" />
-                <Line type="monotone" dataKey="predicted" stroke="#3b82f6" strokeWidth={2} name="Previsão" />
-                <Line type="monotone" dataKey="actual" stroke="#10b981" strokeWidth={2} name="Atual" />
-              </LineChart>
+                <XAxis dataKey="mes" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" tickFormatter={(value) => `R$ ${(value/1000).toFixed(0)}k`} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="real" fill="#10b981" name="Real" opacity={0.8} />
+                <Line type="monotone" dataKey="meta" stroke="#ef4444" strokeWidth={3} name="Meta" strokeDasharray="5 5" />
+                <Line type="monotone" dataKey="mlForecast" stroke="#3b82f6" strokeWidth={2} name="ML Forecast" />
+              </ComposedChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
+        {/* Gráfico de Performance Mensal */}
         <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
           <CardHeader>
-            <CardTitle className="text-white">Performance por Tipo de Quarto</CardTitle>
+            <CardTitle className="text-white">Performance vs Meta Mensal</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={roomTypeData}>
+              <BarChart data={dadosComparativos}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                <XAxis dataKey="type" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
+                <XAxis dataKey="mes" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" tickFormatter={(value) => `${value}%`} />
                 <Tooltip 
+                  formatter={(value: number, name: string) => [
+                    `${value.toFixed(1)}%`, 
+                    name === 'percentualMeta' ? 'Atingimento da Meta' : name
+                  ]}
                   contentStyle={{ 
                     backgroundColor: '#1e293b', 
                     border: '1px solid #475569',
@@ -158,13 +331,75 @@ const ForecastDashboard = () => {
                     color: '#f1f5f9'
                   }} 
                 />
-                <Bar dataKey="occupancy" fill="#3b82f6" name="Ocupação Atual" />
-                <Bar dataKey="forecast" fill="#10b981" name="Previsão" />
+                <Bar 
+                  dataKey={(item: any) => item.real > 0 ? (item.real / item.meta) * 100 : 0} 
+                  fill="#3b82f6" 
+                  name="percentualMeta"
+                />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
+
+      {/* Tabela Detalhada */}
+      <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+        <CardHeader>
+          <CardTitle className="text-white">Detalhamento Mensal</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-600">
+                  <th className="text-left py-3 px-4 text-slate-300 font-medium">Mês</th>
+                  <th className="text-right py-3 px-4 text-slate-300 font-medium">Real</th>
+                  <th className="text-right py-3 px-4 text-slate-300 font-medium">Meta</th>
+                  <th className="text-right py-3 px-4 text-slate-300 font-medium">ML Forecast</th>
+                  <th className="text-center py-3 px-4 text-slate-300 font-medium">Atingimento</th>
+                  <th className="text-center py-3 px-4 text-slate-300 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dadosComparativos.map((item, index) => {
+                  const atingimento = item.real > 0 ? (item.real / item.meta) * 100 : 0;
+                  const statusItem = atingimento >= 100 ? 'success' : atingimento >= 90 ? 'warning' : 'error';
+                  
+                  return (
+                    <tr key={index} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                      <td className="py-3 px-4 text-white font-medium">{item.mes}</td>
+                      <td className="py-3 px-4 text-right text-white">
+                        {item.real > 0 ? formatarValor(item.real) : '-'}
+                      </td>
+                      <td className="py-3 px-4 text-right text-slate-300">{formatarValor(item.meta)}</td>
+                      <td className="py-3 px-4 text-right text-blue-400">{formatarValor(item.mlForecast)}</td>
+                      <td className={`py-3 px-4 text-center font-medium ${
+                        item.real > 0 ? obterCorStatus(statusItem) : 'text-slate-500'
+                      }`}>
+                        {item.real > 0 ? `${atingimento.toFixed(1)}%` : '-'}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        {item.real > 0 ? (
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            statusItem === 'success' ? 'bg-green-500/20 text-green-400' :
+                            statusItem === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
+                            'bg-red-500/20 text-red-400'
+                          }`}>
+                            {statusItem === 'success' ? '✓ Meta' : 
+                             statusItem === 'warning' ? '⚠ Próximo' : '✗ Abaixo'}
+                          </span>
+                        ) : (
+                          <span className="text-slate-500">Pendente</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
