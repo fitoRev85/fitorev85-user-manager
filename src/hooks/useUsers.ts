@@ -64,11 +64,14 @@ export function useUsers() {
           ultimoAcesso: user.ultimoAcesso ? new Date(user.ultimoAcesso) : undefined
         }));
         setUsers(usersWithDates);
+        console.log('Usuários carregados do localStorage:', usersWithDates);
       } catch {
+        console.log('Erro ao carregar usuários, usando padrões');
         setUsers(defaultUsers);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultUsers));
       }
     } else {
+      console.log('Nenhum usuário encontrado, criando usuários padrão');
       setUsers(defaultUsers);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultUsers));
     }
@@ -77,6 +80,7 @@ export function useUsers() {
   const saveUsers = (newUsers: User[]) => {
     setUsers(newUsers);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newUsers));
+    console.log('Usuários salvos:', newUsers);
   };
 
   const addUser = (userData: Partial<User>) => {
@@ -107,7 +111,9 @@ export function useUsers() {
   };
 
   const getUserByEmail = (email: string) => {
-    return users.find(u => u.email === email && u.ativo);
+    const user = users.find(u => u.email === email && u.ativo);
+    console.log('Buscando usuário:', email, 'Encontrado:', user);
+    return user;
   };
 
   return {

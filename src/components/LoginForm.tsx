@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Building2, Eye, EyeOff } from 'lucide-react';
+import { Building2, Eye, EyeOff, Monitor } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,18 +8,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 export function LoginForm() {
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
+  const [email, setEmail] = useState('admin@fitorev85.com');
+  const [senha, setSenha] = useState('senha123');
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, skipAuth } = useAuth();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
-    // Chamar login com email e senha
+    console.log('Tentando fazer login com:', email, senha);
+    
     const loginSuccess = login(email, senha);
     
     if (!loginSuccess) {
@@ -37,6 +38,14 @@ export function LoginForm() {
     }
     
     setLoading(false);
+  };
+
+  const handleSkipAuth = () => {
+    skipAuth();
+    toast({
+      title: "Modo Desenvolvimento",
+      description: "Acesso liberado sem autenticação.",
+    });
   };
 
   return (
@@ -97,6 +106,18 @@ export function LoginForm() {
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>
+
+          <div className="mt-4">
+            <Button
+              type="button"
+              onClick={handleSkipAuth}
+              variant="outline"
+              className="w-full border-slate-600 text-slate-300 hover:bg-slate-700/50"
+            >
+              <Monitor className="w-4 h-4 mr-2" />
+              Pular Autenticação (Dev)
+            </Button>
+          </div>
 
           <div className="mt-6 text-center">
             <p className="text-slate-400 text-sm">
