@@ -7,6 +7,20 @@ const STORAGE_KEY = 'fitorev85_users';
 const defaultUsers: User[] = [
   {
     id: '1',
+    nome: 'Administrador',
+    email: 'admin@fitorev85.com',
+    telefone: '(11) 99999-9999',
+    cargo: 'Administrador',
+    categoria: 'admin',
+    permissoes: categoriaUsuarios.admin.permissoes,
+    propriedadesAcesso: ['1', '2', '3'],
+    ativo: true,
+    dataCriacao: new Date('2024-01-15'),
+    ultimoAcesso: new Date(),
+    senha: 'senha123'
+  },
+  {
+    id: '2',
     nome: 'João Silva',
     email: 'joao@fitorev85.com',
     telefone: '(11) 99999-9999',
@@ -16,10 +30,11 @@ const defaultUsers: User[] = [
     propriedadesAcesso: ['1', '2', '3'],
     ativo: true,
     dataCriacao: new Date('2024-01-15'),
-    ultimoAcesso: new Date()
+    ultimoAcesso: new Date(),
+    senha: 'senha123'
   },
   {
-    id: '2',
+    id: '3',
     nome: 'Maria Santos',
     email: 'maria@fitorev85.com',
     telefone: '(11) 88888-8888',
@@ -29,7 +44,8 @@ const defaultUsers: User[] = [
     propriedadesAcesso: ['1'],
     ativo: true,
     dataCriacao: new Date('2024-02-01'),
-    ultimoAcesso: new Date()
+    ultimoAcesso: new Date(),
+    senha: 'senha123'
   }
 ];
 

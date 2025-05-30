@@ -1,4 +1,3 @@
-
 export type UserCategory = 'super_admin' | 'admin' | 'gerente_geral' | 'revenue_manager' | 'financeiro' | 'operacional';
 
 export interface User {
@@ -13,6 +12,7 @@ export interface User {
   ativo: boolean;
   dataCriacao: Date;
   ultimoAcesso?: Date;
+  senha?: string;
 }
 
 export interface AuthUser {

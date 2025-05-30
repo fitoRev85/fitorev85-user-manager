@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 export function LoginForm() {
   const [email, setEmail] = useState('');
@@ -12,6 +13,7 @@ export function LoginForm() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,6 +24,16 @@ export function LoginForm() {
     
     if (!loginSuccess) {
       console.log('Login failed');
+      toast({
+        title: "Erro no login",
+        description: "Email ou senha incorretos. Tente novamente.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Login realizado",
+        description: "Bem-vindo ao FitoRev85!",
+      });
     }
     
     setLoading(false);

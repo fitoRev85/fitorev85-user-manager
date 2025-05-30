@@ -21,8 +21,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Buscar usuário no sistema
     const foundUser = getUserByEmail(email);
     
-    if (foundUser) {
-      console.log('Usuário encontrado:', foundUser);
+    if (foundUser && foundUser.senha === password) {
+      console.log('Usuário encontrado e senha correta:', foundUser);
       const authUser: AuthUser = {
         id: foundUser.id,
         nome: foundUser.nome,
@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return true;
     }
     
-    console.log('Usuário não encontrado ou inativo');
+    console.log('Usuário não encontrado, inativo ou senha incorreta');
     return false;
   };
 
