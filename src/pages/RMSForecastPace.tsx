@@ -1,19 +1,20 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  ArrowLeft, Building2, LogOut, Brain, Target, Bell, Database, BarChart3
+  ArrowLeft, Building2, LogOut, Brain, Target, Bell, Database, BarChart3, Calendar
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useProperties } from '@/hooks/useProperties';
 
-// Import dos novos componentes
+// Import dos componentes
 import ForecastDashboard from '@/components/forecast/ForecastDashboard';
 import MLForecasting from '@/components/forecast/MLForecasting';
 import CompetitiveAnalysis from '@/components/forecast/CompetitiveAnalysis';
 import AlertsSystem from '@/components/forecast/AlertsSystem';
 import DataManagement from '@/components/forecast/DataManagement';
+import ManualForecast from '@/components/forecast/ManualForecast';
 
 const RMSForecastPace = () => {
   const { user, logout } = useAuth();
@@ -91,10 +92,14 @@ const RMSForecastPace = () => {
       {/* Main Content */}
       <main className="p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 bg-slate-800/50 border border-slate-700/50">
+          <TabsList className="grid w-full grid-cols-6 bg-slate-800/50 border border-slate-700/50">
             <TabsTrigger value="dashboard" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
               <BarChart3 className="w-4 h-4 mr-2" />
               Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="manual-forecast" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
+              <Calendar className="w-4 h-4 mr-2" />
+              Forecast Manual
             </TabsTrigger>
             <TabsTrigger value="ml-forecasting" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
               <Brain className="w-4 h-4 mr-2" />
@@ -116,6 +121,10 @@ const RMSForecastPace = () => {
 
           <TabsContent value="dashboard" className="space-y-6">
             <ForecastDashboard />
+          </TabsContent>
+
+          <TabsContent value="manual-forecast" className="space-y-6">
+            <ManualForecast />
           </TabsContent>
 
           <TabsContent value="ml-forecasting" className="space-y-6">
