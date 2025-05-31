@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -7,8 +6,11 @@ import { TrendingUp, Calendar, Users, DollarSign, AlertTriangle, CheckCircle, Ta
 import { useMetas } from '@/hooks/useMetas';
 import { useProperties } from '@/hooks/useProperties';
 
-const ForecastDashboard = () => {
-  const [propriedadeSelecionada, setPropriedadeSelecionada] = useState('1');
+interface ForecastDashboardProps {
+  propertyId: string;
+}
+
+const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
   const [kpiData, setKpiData] = useState({
     currentOccupancy: 78.5,
     forecast30Days: 82.3,
@@ -21,9 +23,12 @@ const ForecastDashboard = () => {
   });
 
   const { obterMetasPropriedade, obterMetaPeriodo } = useMetas();
-  const { properties } = useProperties();
+  const { properties, getProperty } = useProperties();
 
-  // Dados comparativos (Real vs Meta vs ML Forecast)
+  // Obter dados da propriedade específica
+  const currentProperty = getProperty(propertyId);
+
+  // Dados comparativos específicos da propriedade
   const [dadosComparativos, setDadosComparativos] = useState([
     { 
       mes: 'Jan', 
@@ -80,9 +85,35 @@ const ForecastDashboard = () => {
   });
 
   useEffect(() => {
+    if (currentProperty) {
+      // Atualizar KPIs baseados na propriedade
+      const baseRevenue = currentProperty.rooms * 200;
+      const occupancy = currentProperty.occupancy || 75;
+      const adr = currentProperty.adr || 250;
+      
+      setKpiData(prev => ({
+        ...prev,
+        currentOccupancy: occupancy,
+        currentRevpar: currentProperty.revpar || Math.round(adr * (occupancy / 100)),
+        forecastRevpar: Math.round(adr * ((occupancy + 5) / 100)),
+        totalBookings: Math.round(currentProperty.rooms * occupancy * 0.3),
+        receitaAtual: Math.round(baseRevenue * (occupancy / 100)),
+        metaMesAtual: Math.round(baseRevenue * (occupancy / 100) * 1.1)
+      }));
+
+      // Atualizar dados comparativos baseados na propriedade
+      const scaleFactor = currentProperty.rooms / 120; // 120 quartos como base
+      setDadosComparativos(prev => prev.map(item => ({
+        ...item,
+        real: item.real > 0 ? Math.round(item.real * scaleFactor) : 0,
+        meta: Math.round(item.meta * scaleFactor),
+        mlForecast: Math.round(item.mlForecast * scaleFactor)
+      })));
+    }
+    
     calcularPace();
     carregarDadosComparativos();
-  }, [propriedadeSelecionada]);
+  }, [propertyId, currentProperty]);
 
   const calcularPace = () => {
     const { receitaAtual, diasDecorridos, diasNoMes, metaMes } = paceData;
@@ -105,9 +136,11 @@ const ForecastDashboard = () => {
   };
 
   const carregarDadosComparativos = () => {
-    // Carregar metas reais do sistema
+    if (!propertyId) return;
+    
+    // Carregar metas reais do sistema para a propriedade específica
     const anoAtual = new Date().getFullYear();
-    const metas = obterMetasPropriedade(propriedadeSelecionada, anoAtual);
+    const metas = obterMetasPropriedade(propertyId, anoAtual);
     
     // Atualizar dados comparativos com metas reais
     const novosComparativos = dadosComparativos.map(item => {
@@ -169,24 +202,30 @@ const ForecastDashboard = () => {
     return null;
   };
 
+  if (!currentProperty) {
+    return (
+      <div className="text-center text-slate-400 py-12">
+        <p>Propriedade não encontrada</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Seletor de Propriedade */}
+      {/* Header da Propriedade */}
       <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
         <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
-            <label className="text-slate-300 font-medium">Propriedade:</label>
-            <select 
-              value={propriedadeSelecionada} 
-              onChange={(e) => setPropriedadeSelecionada(e.target.value)}
-              className="bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-white"
-            >
-              {properties.map(property => (
-                <option key={property.id} value={property.id}>
-                  {property.name}
-                </option>
-              ))}
-            </select>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-white">{currentProperty.name}</h2>
+              <p className="text-slate-400">{currentProperty.location} • {currentProperty.rooms} quartos</p>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-blue-400">
+                {formatarValor(kpiData.currentRevpar)}
+              </p>
+              <p className="text-sm text-slate-400">RevPAR Atual</p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -253,7 +292,7 @@ const ForecastDashboard = () => {
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             {obterIconeStatus(paceData.status)}
-            Alertas de Performance
+            Alertas de Performance - {currentProperty.name}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -345,7 +384,7 @@ const ForecastDashboard = () => {
       {/* Tabela Detalhada */}
       <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
         <CardHeader>
-          <CardTitle className="text-white">Detalhamento Mensal</CardTitle>
+          <CardTitle className="text-white">Detalhamento Mensal - {currentProperty.name}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
