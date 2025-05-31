@@ -1,10 +1,10 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Upload, Download, Database, FileText, Calendar, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
 
 interface DataManagementProps {
   propertyId: string;
@@ -15,7 +15,7 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
   const [uploadHistory, setUploadHistory] = useState([
     {
       id: 1,
-      filename: 'reservas_2024_01.csv',
+      filename: 'reservas_2024_01.xlsx',
       type: 'reservas',
       uploadDate: '2024-01-07 10:30',
       status: 'processed',
@@ -33,11 +33,11 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
     },
     {
       id: 3,
-      filename: 'eventos_2024.csv',
-      type: 'eventos',
+      filename: 'historico_vendas.xlsx',
+      type: 'vendas',
       uploadDate: '2024-01-06 16:45',
       status: 'completed',
-      records: 67,
+      records: 234,
       errors: 0
     }
   ]);
@@ -45,7 +45,64 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dataType, setDataType] = useState('reservas');
   const [validationResults, setValidationResults] = useState<any>(null);
-  const [csvData, setCsvData] = useState<any[]>([]);
+  const [parsedData, setParsedData] = useState<any[]>([]);
+
+  const dataTypes = [
+    { value: 'reservas', label: 'Dados de Reservas', description: 'Check-ins, check-outs, valores' },
+    { value: 'custos', label: 'Dados de Custos', description: 'Custos operacionais e fixos' },
+    { value: 'vendas', label: 'Histórico de Vendas', description: 'Dados históricos de receita' },
+    { value: 'eventos', label: 'Calendário de Eventos', description: 'Eventos e feriados' },
+    { value: 'metas', label: 'Metas de Performance', description: 'Objetivos mensais/anuais' },
+    { value: 'concorrencia', label: 'Dados de Concorrência', description: 'Preços e ocupação competitors' },
+    { value: 'clientes', label: 'Base de Clientes', description: 'Perfil e histórico de hóspedes' },
+    { value: 'canais', label: 'Performance de Canais', description: 'OTAs, direto, agências' },
+    { value: 'funcionarios', label: 'Dados de Funcionários', description: 'Escalas e custos de pessoal' },
+    { value: 'manutencao', label: 'Manutenção e Facilities', description: 'Custos de manutenção' }
+  ];
+
+  const parseExcelFile = (file: File): Promise<any[]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          
+          // Pega a primeira planilha
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          
+          // Converte para JSON
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          
+          if (jsonData.length === 0) {
+            reject(new Error('Planilha vazia'));
+            return;
+          }
+
+          // Primeira linha são os cabeçalhos
+          const headers = jsonData[0] as string[];
+          const rows = jsonData.slice(1) as any[][];
+
+          const formattedData = rows
+            .filter(row => row.some(cell => cell !== undefined && cell !== ''))
+            .map(row => {
+              const rowData: any = {};
+              headers.forEach((header, index) => {
+                rowData[header] = row[index] || '';
+              });
+              return rowData;
+            });
+
+          resolve(formattedData);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
+    });
+  };
 
   const parseCsvFile = (file: File): Promise<any[]> => {
     return new Promise((resolve, reject) => {
@@ -77,55 +134,103 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
     });
   };
 
-  const validateCsvData = (data: any[], type: string) => {
+  const validateData = (data: any[], type: string) => {
     let requiredColumns: string[] = [];
     let errors: string[] = [];
     let warnings: string[] = [];
 
-    switch (type) {
-      case 'reservas':
-        requiredColumns = ['data_checkin', 'data_checkout', 'valor_total', 'quarto_tipo'];
-        break;
-      case 'custos':
-        requiredColumns = ['data', 'categoria', 'valor', 'descricao'];
-        break;
-      case 'eventos':
-        requiredColumns = ['data_inicio', 'data_fim', 'nome_evento', 'impacto_ocupacao'];
-        break;
-      case 'metas':
-        requiredColumns = ['mes_ano', 'valor_meta', 'tipo_meta'];
-        break;
-      default:
-        requiredColumns = [];
-    }
+    const columnMappings: { [key: string]: string[] } = {
+      'reservas': ['data_checkin', 'data_checkout', 'valor_total', 'quarto_tipo', 'canal_venda'],
+      'custos': ['data', 'categoria', 'valor', 'descricao', 'tipo'],
+      'vendas': ['data', 'receita', 'quartos_vendidos', 'canal', 'adr'],
+      'eventos': ['data_inicio', 'data_fim', 'nome_evento', 'impacto_ocupacao'],
+      'metas': ['mes_ano', 'valor_meta', 'tipo_meta'],
+      'concorrencia': ['data', 'hotel_concorrente', 'preco_medio', 'ocupacao_estimada'],
+      'clientes': ['nome', 'email', 'telefone', 'data_nascimento', 'cidade'],
+      'canais': ['canal', 'mes_ano', 'receita', 'reservas', 'comissao'],
+      'funcionarios': ['nome', 'cargo', 'salario', 'departamento', 'data_admissao'],
+      'manutencao': ['data', 'tipo_servico', 'custo', 'fornecedor', 'status']
+    };
+
+    requiredColumns = columnMappings[type] || [];
 
     // Verificar colunas obrigatórias
     const headers = Object.keys(data[0] || {});
-    const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+    const missingColumns = requiredColumns.filter(col => 
+      !headers.some(header => 
+        header.toLowerCase().includes(col.toLowerCase()) || 
+        col.toLowerCase().includes(header.toLowerCase())
+      )
+    );
     
     if (missingColumns.length > 0) {
-      errors.push(`Colunas obrigatórias ausentes: ${missingColumns.join(', ')}`);
+      warnings.push(`Colunas sugeridas não encontradas: ${missingColumns.join(', ')}`);
     }
 
     // Verificar dados vazios
     let emptyRows = 0;
+    let invalidDates = 0;
+    let invalidNumbers = 0;
+
     data.forEach((row, index) => {
-      const emptyFields = requiredColumns.filter(col => !row[col] || row[col].toString().trim() === '');
-      if (emptyFields.length > 0) {
+      const values = Object.values(row);
+      const emptyFields = values.filter(val => !val || val.toString().trim() === '').length;
+      
+      if (emptyFields > values.length / 2) {
         emptyRows++;
+      }
+
+      // Validações específicas por tipo
+      if (type === 'reservas' || type === 'vendas') {
+        const dateFields = Object.keys(row).filter(key => key.toLowerCase().includes('data'));
+        dateFields.forEach(field => {
+          const dateValue = row[field];
+          if (dateValue && isNaN(Date.parse(dateValue))) {
+            invalidDates++;
+          }
+        });
+
+        const numberFields = Object.keys(row).filter(key => 
+          key.toLowerCase().includes('valor') || 
+          key.toLowerCase().includes('preco') ||
+          key.toLowerCase().includes('receita')
+        );
+        numberFields.forEach(field => {
+          const numValue = row[field];
+          if (numValue && isNaN(parseFloat(numValue.toString().replace(',', '.')))) {
+            invalidNumbers++;
+          }
+        });
       }
     });
 
     if (emptyRows > 0) {
-      warnings.push(`${emptyRows} linhas com dados incompletos`);
+      warnings.push(`${emptyRows} linhas com muitos dados incompletos`);
     }
 
+    if (invalidDates > 0) {
+      warnings.push(`${invalidDates} datas em formato inválido`);
+    }
+
+    if (invalidNumbers > 0) {
+      warnings.push(`${invalidNumbers} valores numéricos inválidos`);
+    }
+
+    // Considerar válido se não há erros críticos
+    const isValid = errors.length === 0 && data.length > 0;
+
     return {
-      isValid: errors.length === 0,
+      isValid,
       errors,
       warnings,
       records: data.length,
-      columns: headers
+      columns: headers,
+      summary: {
+        emptyRows,
+        invalidDates,
+        invalidNumbers,
+        dataQuality: Math.round(((data.length - emptyRows) / data.length) * 100)
+      }
     };
   };
 
@@ -133,10 +238,13 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!file.name.toLowerCase().endsWith('.csv')) {
+    const isExcel = file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls');
+    const isCsv = file.name.toLowerCase().endsWith('.csv');
+
+    if (!isExcel && !isCsv) {
       toast({
         title: "Erro",
-        description: "Por favor, selecione um arquivo CSV válido.",
+        description: "Por favor, selecione um arquivo Excel (.xlsx/.xls) ou CSV válido.",
         variant: "destructive"
       });
       return;
@@ -145,16 +253,23 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
     setSelectedFile(file);
 
     try {
-      const data = await parseCsvFile(file);
-      setCsvData(data);
+      let data: any[];
       
-      const validation = validateCsvData(data, dataType);
+      if (isExcel) {
+        data = await parseExcelFile(file);
+      } else {
+        data = await parseCsvFile(file);
+      }
+      
+      setParsedData(data);
+      
+      const validation = validateData(data, dataType);
       setValidationResults(validation);
 
       if (validation.isValid) {
         toast({
           title: "Arquivo validado",
-          description: `${validation.records} registros válidos encontrados.`,
+          description: `${validation.records} registros válidos encontrados. Qualidade: ${validation.summary.dataQuality}%`,
         });
       } else {
         toast({
@@ -166,7 +281,7 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
     } catch (error) {
       toast({
         title: "Erro",
-        description: "Não foi possível processar o arquivo CSV.",
+        description: `Não foi possível processar o arquivo: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
         variant: "destructive"
       });
     }
@@ -175,7 +290,6 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
   const processUpload = () => {
     if (!selectedFile || !validationResults?.isValid) return;
 
-    // Simular processamento e distribuição dos dados
     const newUpload = {
       id: Date.now(),
       filename: selectedFile.name,
@@ -187,18 +301,16 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
     };
 
     setUploadHistory([newUpload, ...uploadHistory]);
-
-    // Distribuir dados para os módulos apropriados
-    distributeDataToModules(csvData, dataType);
+    distributeDataToModules(parsedData, dataType);
 
     // Limpar estado
     setSelectedFile(null);
     setValidationResults(null);
-    setCsvData([]);
+    setParsedData([]);
 
     toast({
       title: "Upload iniciado",
-      description: `Processando ${validationResults.records} registros...`,
+      description: `Processando ${validationResults.records} registros de ${dataType}...`,
     });
 
     // Simular conclusão do processamento
@@ -215,53 +327,148 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
   };
 
   const distributeDataToModules = (data: any[], type: string) => {
-    // Salvar dados no localStorage para que outros módulos possam acessar
     const storageKey = `${type}_data_${propertyId}`;
     
     try {
-      localStorage.setItem(storageKey, JSON.stringify({
+      const processedData = {
         data,
         timestamp: new Date().toISOString(),
-        propertyId
-      }));
+        propertyId,
+        type,
+        summary: {
+          totalRecords: data.length,
+          dateRange: extractDateRange(data, type),
+          categories: extractCategories(data, type)
+        }
+      };
 
-      console.log(`Dados de ${type} distribuídos para propriedade ${propertyId}:`, data);
+      localStorage.setItem(storageKey, JSON.stringify(processedData));
+
+      // Também salvar um índice geral para facilitar consultas
+      const indexKey = `data_index_${propertyId}`;
+      const existingIndex = JSON.parse(localStorage.getItem(indexKey) || '{}');
+      existingIndex[type] = {
+        lastUpdated: new Date().toISOString(),
+        records: data.length,
+        storageKey
+      };
+      localStorage.setItem(indexKey, JSON.stringify(existingIndex));
+
+      console.log(`Dados de ${type} distribuídos para propriedade ${propertyId}:`, processedData);
     } catch (error) {
       console.error('Erro ao salvar dados:', error);
     }
   };
 
-  const downloadTemplate = (type: string) => {
-    let csvContent = '';
+  const extractDateRange = (data: any[], type: string) => {
+    const dateColumns = Object.keys(data[0] || {}).filter(key => 
+      key.toLowerCase().includes('data') || key.toLowerCase().includes('date')
+    );
     
-    switch (type) {
-      case 'reservas':
-        csvContent = 'data_checkin,data_checkout,valor_total,quarto_tipo,canal_venda,status\n2024-01-15,2024-01-17,850.00,Standard,Booking.com,Confirmada';
-        break;
-      case 'custos':
-        csvContent = 'data,categoria,valor,descricao,tipo\n2024-01-01,Operacional,1500.00,Limpeza,Fixo';
-        break;
-      case 'eventos':
-        csvContent = 'data_inicio,data_fim,nome_evento,impacto_ocupacao,tipo\n2024-02-14,2024-02-16,Carnaval,Alto,Feriado';
-        break;
-      case 'metas':
-        csvContent = 'mes_ano,valor_meta,tipo_meta,observacoes\n2024-01,45000.00,Receita,Meta conservadora';
-        break;
-      default:
-        csvContent = 'coluna1,coluna2,coluna3\nvalor1,valor2,valor3';
+    if (dateColumns.length === 0) return null;
+
+    const dates = data
+      .map(row => row[dateColumns[0]])
+      .filter(date => date && !isNaN(Date.parse(date)))
+      .map(date => new Date(date))
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    if (dates.length === 0) return null;
+
+    return {
+      start: dates[0].toISOString().split('T')[0],
+      end: dates[dates.length - 1].toISOString().split('T')[0]
+    };
+  };
+
+  const extractCategories = (data: any[], type: string) => {
+    const categoryColumns = Object.keys(data[0] || {}).filter(key => 
+      key.toLowerCase().includes('categoria') || 
+      key.toLowerCase().includes('tipo') ||
+      key.toLowerCase().includes('canal')
+    );
+    
+    if (categoryColumns.length === 0) return [];
+
+    const categories = [...new Set(
+      data.map(row => row[categoryColumns[0]]).filter(Boolean)
+    )];
+
+    return categories.slice(0, 10); // Limitar a 10 categorias principais
+  };
+
+  const downloadTemplate = (type: string) => {
+    let headers: string[] = [];
+    let sampleData: string[] = [];
+    
+    const templates: { [key: string]: { headers: string[], sample: string[] } } = {
+      'reservas': {
+        headers: ['data_checkin', 'data_checkout', 'valor_total', 'quarto_tipo', 'canal_venda', 'status', 'hospedes'],
+        sample: ['2024-01-15', '2024-01-17', '850.00', 'Standard', 'Booking.com', 'Confirmada', '2']
+      },
+      'custos': {
+        headers: ['data', 'categoria', 'valor', 'descricao', 'tipo', 'fornecedor'],
+        sample: ['2024-01-01', 'Operacional', '1500.00', 'Limpeza', 'Fixo', 'Empresa Limpeza Ltda']
+      },
+      'vendas': {
+        headers: ['data', 'receita', 'quartos_vendidos', 'canal', 'adr', 'ocupacao'],
+        sample: ['2024-01-01', '12500.00', '45', 'Direto', '278.00', '75']
+      },
+      'eventos': {
+        headers: ['data_inicio', 'data_fim', 'nome_evento', 'impacto_ocupacao', 'tipo'],
+        sample: ['2024-02-14', '2024-02-16', 'Carnaval', 'Alto', 'Feriado']
+      },
+      'metas': {
+        headers: ['mes_ano', 'valor_meta', 'tipo_meta', 'observacoes'],
+        sample: ['2024-01', '45000.00', 'Receita', 'Meta conservadora']
+      },
+      'concorrencia': {
+        headers: ['data', 'hotel_concorrente', 'preco_medio', 'ocupacao_estimada', 'fonte'],
+        sample: ['2024-01-01', 'Hotel Rival', '320.00', '80', 'OTA Research']
+      },
+      'clientes': {
+        headers: ['nome', 'email', 'telefone', 'data_nascimento', 'cidade', 'segmento'],
+        sample: ['João Silva', 'joao@email.com', '11999999999', '1985-03-15', 'São Paulo', 'Executivo']
+      },
+      'canais': {
+        headers: ['canal', 'mes_ano', 'receita', 'reservas', 'comissao', 'adr'],
+        sample: ['Booking.com', '2024-01', '25000.00', '89', '18', '280.00']
+      },
+      'funcionarios': {
+        headers: ['nome', 'cargo', 'salario', 'departamento', 'data_admissao'],
+        sample: ['Maria Santos', 'Recepcionista', '3500.00', 'Front Office', '2023-06-01']
+      },
+      'manutencao': {
+        headers: ['data', 'tipo_servico', 'custo', 'fornecedor', 'status', 'urgencia'],
+        sample: ['2024-01-01', 'Ar Condicionado', '450.00', 'Clima Tech', 'Concluído', 'Normal']
+      }
+    };
+
+    const template = templates[type] || templates['reservas'];
+    headers = template.headers;
+    sampleData = template.sample;
+
+    // Criar workbook Excel
+    const wb = XLSX.utils.book_new();
+    const wsData = [headers, sampleData];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    
+    // Adicionar estilo aos cabeçalhos
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+    for (let col = range.s.c; col <= range.e.c; col++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+      if (!ws[cellAddress]) continue;
+      ws[cellAddress].s = {
+        font: { bold: true },
+        fill: { fgColor: { rgb: "CCCCCC" } }
+      };
     }
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `template_${type}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    XLSX.utils.book_append_sheet(wb, ws, 'Template');
+    XLSX.writeFile(wb, `template_${type}.xlsx`);
   };
 
   const exportData = (format: string) => {
-    // Simular exportação
     toast({
       title: "Exportação iniciada",
       description: `Gerando arquivo ${format.toUpperCase()}...`,
@@ -287,13 +494,8 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
   };
 
   const getTypeLabel = (type: string) => {
-    switch (type) {
-      case 'reservas': return 'Reservas';
-      case 'custos': return 'Custos';
-      case 'eventos': return 'Eventos';
-      case 'metas': return 'Metas';
-      default: return type;
-    }
+    const typeData = dataTypes.find(dt => dt.value === type);
+    return typeData ? typeData.label : type;
   };
 
   return (
@@ -303,7 +505,7 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <Upload className="w-5 h-5 text-blue-400" />
-            Upload de Dados CSV - Propriedade: {propertyId}
+            Upload de Dados (Excel/CSV) - Propriedade: {propertyId}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -315,21 +517,28 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
                 onChange={(e) => setDataType(e.target.value)}
                 className="w-full bg-slate-700/50 border-slate-600/50 text-white rounded-lg px-3 py-2"
               >
-                <option value="reservas">Dados de Reservas</option>
-                <option value="custos">Dados de Custos</option>
-                <option value="eventos">Calendário de Eventos</option>
-                <option value="metas">Metas de Performance</option>
+                {dataTypes.map(type => (
+                  <option key={type.value} value={type.value}>
+                    {type.label}
+                  </option>
+                ))}
               </select>
+              <p className="text-xs text-slate-400 mt-1">
+                {dataTypes.find(t => t.value === dataType)?.description}
+              </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Arquivo CSV</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Arquivo (Excel/CSV)</label>
               <Input
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx,.xls"
                 onChange={handleFileUpload}
                 className="bg-slate-700/50 border-slate-600/50 text-white file:bg-blue-600 file:text-white file:border-0 file:rounded-lg file:px-3 file:py-1"
               />
+              <p className="text-xs text-slate-400 mt-1">
+                Suporta: .xlsx, .xls, .csv
+              </p>
             </div>
 
             <div className="flex items-end">
@@ -339,7 +548,7 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
                 className="border-slate-600 text-slate-300 hover:bg-slate-700 w-full"
               >
                 <Download className="w-4 h-4 mr-2" />
-                Template
+                Template Excel
               </Button>
             </div>
           </div>
@@ -347,7 +556,7 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
           {validationResults && (
             <div className="mb-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
               <h4 className="text-white font-medium mb-3">Validação do Arquivo</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-3">
                 <div className="text-center">
                   <div className="text-lg font-bold text-green-400">{validationResults.records}</div>
                   <div className="text-xs text-slate-400">Registros</div>
@@ -363,6 +572,10 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
                 <div className="text-center">
                   <div className="text-lg font-bold text-yellow-400">{validationResults.warnings.length}</div>
                   <div className="text-xs text-slate-400">Avisos</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-cyan-400">{validationResults.summary?.dataQuality || 0}%</div>
+                  <div className="text-xs text-slate-400">Qualidade</div>
                 </div>
               </div>
 
@@ -396,7 +609,7 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
                   onClick={() => {
                     setValidationResults(null);
                     setSelectedFile(null);
-                    setCsvData([]);
+                    setParsedData([]);
                   }}
                   variant="outline"
                   className="border-slate-600 text-slate-300 hover:bg-slate-700"
