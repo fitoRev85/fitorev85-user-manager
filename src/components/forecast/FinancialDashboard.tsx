@@ -2,8 +2,10 @@
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, CreditCard, Calculator, FileText } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, CreditCard, Calculator, FileText, Target } from 'lucide-react';
 import { useProperties } from '@/hooks/useProperties';
 
 interface FinancialDashboardProps {
@@ -14,30 +16,76 @@ const FinancialDashboard = ({ propertyId }: FinancialDashboardProps) => {
   const [activeTab, setActiveTab] = useState('overview');
   const { getProperty } = useProperties();
   
+  // Estados para estimativa de custos
+  const [estLimpeza, setEstLimpeza] = useState(25);
+  const [estAmenities, setEstAmenities] = useState(15);
+  const [estLavanderia, setEstLavanderia] = useState(18);
+  const [estManutencao, setEstManutencao] = useState(12);
+  const [estEnergia, setEstEnergia] = useState(20);
+  const [estPessoal, setEstPessoal] = useState(35);
+  const [diasEstadia, setDiasEstadia] = useState(1);
+  
   const currentProperty = getProperty(propertyId);
+
+  // Carregar dados CSV se disponíveis
+  const csvData = useMemo(() => {
+    try {
+      const reservasData = localStorage.getItem(`reservas_data_${propertyId}`);
+      const custosData = localStorage.getItem(`custos_data_${propertyId}`);
+      
+      return {
+        reservas: reservasData ? JSON.parse(reservasData).data : [],
+        custos: custosData ? JSON.parse(custosData).data : []
+      };
+    } catch {
+      return { reservas: [], custos: [] };
+    }
+  }, [propertyId]);
 
   // Dados financeiros simulados baseados na propriedade selecionada
   const financialData = useMemo(() => {
     if (!currentProperty) return null;
 
-    // Simular dados baseados no número de quartos da propriedade
-    const baseRevenue = currentProperty.rooms * 200; // R$ 200 por quarto base
+    // Usar dados CSV se disponíveis, senão usar simulados
+    let receita = 0;
+    let custos = 0;
+
+    if (csvData.reservas.length > 0) {
+      receita = csvData.reservas.reduce((sum: number, reserva: any) => {
+        return sum + (parseFloat(reserva.valor_total) || 0);
+      }, 0);
+    } else {
+      const baseRevenue = currentProperty.rooms * 200;
+      const occupancyRate = currentProperty.occupancy || 75;
+      receita = Math.round(baseRevenue * (occupancyRate / 100) * 30);
+    }
+
+    if (csvData.custos.length > 0) {
+      custos = csvData.custos.reduce((sum: number, custo: any) => {
+        return sum + (parseFloat(custo.valor) || 0);
+      }, 0);
+    } else {
+      custos = Math.round(receita * 0.7);
+    }
+
+    const profit = receita - custos;
+    const margin = receita > 0 ? (profit / receita) * 100 : 0;
     const occupancyRate = currentProperty.occupancy || 75;
     const adr = currentProperty.adr || 250;
 
     return {
-      revenue: Math.round(baseRevenue * (occupancyRate / 100) * 30), // Mensal
-      costs: Math.round(baseRevenue * (occupancyRate / 100) * 30 * 0.7), // 70% da receita
-      profit: Math.round(baseRevenue * (occupancyRate / 100) * 30 * 0.3), // 30% margem
-      margin: 30,
-      otaCommissions: Math.round(baseRevenue * (occupancyRate / 100) * 30 * 0.12), // 12% comissão OTA
-      operationalCosts: Math.round(baseRevenue * (occupancyRate / 100) * 30 * 0.45),
-      fixedCosts: Math.round(baseRevenue * (occupancyRate / 100) * 30 * 0.25),
+      revenue: receita,
+      costs: custos,
+      profit: profit,
+      margin: Math.round(margin),
+      otaCommissions: Math.round(receita * 0.12),
+      operationalCosts: Math.round(custos * 0.64),
+      fixedCosts: Math.round(custos * 0.36),
       occupancy: occupancyRate,
       adr: adr,
       revpar: Math.round(adr * (occupancyRate / 100))
     };
-  }, [currentProperty, propertyId]);
+  }, [currentProperty, propertyId, csvData]);
 
   // Dados mensais baseados na propriedade
   const monthlyData = useMemo(() => {
@@ -60,6 +108,29 @@ const FinancialDashboard = ({ propertyId }: FinancialDashboardProps) => {
     { name: 'Direto', revenue: financialData?.revenue * 0.25 || 0, commission: 0, bookings: 234 }
   ];
 
+  // Cálculo de estimativa de custos por diária
+  const calcularCustoDiaria = () => {
+    const custoBase = estLimpeza + estAmenities + estLavanderia + estManutencao + estEnergia + estPessoal;
+    
+    const calculos = [];
+    for (let dias = 1; dias <= 7; dias++) {
+      const custoTotal = custoBase * dias;
+      const desconto = dias > 1 ? (dias - 1) * 5 : 0; // 5% desconto por dia adicional
+      const custoComDesconto = custoTotal * (1 - desconto / 100);
+      
+      calculos.push({
+        dias,
+        custoTotal: custoComDesconto,
+        custoPorDia: custoComDesconto / dias,
+        economia: custoTotal - custoComDesconto
+      });
+    }
+    
+    return calculos;
+  };
+
+  const estimativasCusto = calcularCustoDiaria();
+
   if (!currentProperty || !financialData) {
     return (
       <div className="text-center text-slate-400 py-12">
@@ -77,6 +148,9 @@ const FinancialDashboard = ({ propertyId }: FinancialDashboardProps) => {
             <div>
               <h2 className="text-xl font-bold text-white">{currentProperty.name}</h2>
               <p className="text-slate-400">{currentProperty.location} • {currentProperty.rooms} quartos</p>
+              {csvData.reservas.length > 0 && (
+                <p className="text-sm text-green-400">✓ Dados CSV carregados: {csvData.reservas.length} reservas</p>
+              )}
             </div>
             <div className="text-right">
               <p className="text-2xl font-bold text-blue-400">
@@ -206,6 +280,10 @@ const FinancialDashboard = ({ propertyId }: FinancialDashboardProps) => {
             <AlertTriangle className="w-4 h-4 mr-2" />
             Análise de Custos
           </TabsTrigger>
+          <TabsTrigger value="estimates" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
+            <Target className="w-4 h-4 mr-2" />
+            Estimativa de Custos
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -324,6 +402,170 @@ const FinancialDashboard = ({ propertyId }: FinancialDashboardProps) => {
               </ResponsiveContainer>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="estimates">
+          <div className="space-y-6">
+            <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+              <CardHeader>
+                <CardTitle className="text-white">Calculadora de Custos por Diária</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Configuração de Custos */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-white">Custos Base (R$/dia)</h3>
+                    
+                    <div>
+                      <label className="block text-sm text-slate-300 mb-1">Limpeza</label>
+                      <Input
+                        type="number"
+                        value={estLimpeza}
+                        onChange={(e) => setEstLimpeza(Number(e.target.value))}
+                        className="bg-slate-700/50 border-slate-600/50 text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm text-slate-300 mb-1">Amenities</label>
+                      <Input
+                        type="number"
+                        value={estAmenities}
+                        onChange={(e) => setEstAmenities(Number(e.target.value))}
+                        className="bg-slate-700/50 border-slate-600/50 text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm text-slate-300 mb-1">Lavanderia</label>
+                      <Input
+                        type="number"
+                        value={estLavanderia}
+                        onChange={(e) => setEstLavanderia(Number(e.target.value))}
+                        className="bg-slate-700/50 border-slate-600/50 text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm text-slate-300 mb-1">Manutenção</label>
+                      <Input
+                        type="number"
+                        value={estManutencao}
+                        onChange={(e) => setEstManutencao(Number(e.target.value))}
+                        className="bg-slate-700/50 border-slate-600/50 text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm text-slate-300 mb-1">Energia</label>
+                      <Input
+                        type="number"
+                        value={estEnergia}
+                        onChange={(e) => setEstEnergia(Number(e.target.value))}
+                        className="bg-slate-700/50 border-slate-600/50 text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm text-slate-300 mb-1">Pessoal</label>
+                      <Input
+                        type="number"
+                        value={estPessoal}
+                        onChange={(e) => setEstPessoal(Number(e.target.value))}
+                        className="bg-slate-700/50 border-slate-600/50 text-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Resultados */}
+                  <div className="md:col-span-2">
+                    <h3 className="text-lg font-semibold text-white mb-4">Estimativas por Estadia</h3>
+                    
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-slate-600">
+                            <th className="text-left py-3 px-4 text-slate-300">Dias</th>
+                            <th className="text-right py-3 px-4 text-slate-300">Custo Total</th>
+                            <th className="text-right py-3 px-4 text-slate-300">Custo/Dia</th>
+                            <th className="text-right py-3 px-4 text-slate-300">Economia</th>
+                            <th className="text-right py-3 px-4 text-slate-300">% Economia</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {estimativasCusto.map((est, index) => (
+                            <tr key={index} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                              <td className="py-3 px-4 text-white font-medium">{est.dias}</td>
+                              <td className="py-3 px-4 text-right text-white">R$ {est.custoTotal.toFixed(2)}</td>
+                              <td className="py-3 px-4 text-right text-blue-400">R$ {est.custoPorDia.toFixed(2)}</td>
+                              <td className="py-3 px-4 text-right text-green-400">R$ {est.economia.toFixed(2)}</td>
+                              <td className="py-3 px-4 text-right text-green-400">
+                                {est.dias > 1 ? `${((est.dias - 1) * 5).toFixed(1)}%` : '-'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Gráfico de custos */}
+                    <div className="mt-6">
+                      <ResponsiveContainer width="100%" height={250}>
+                        <LineChart data={estimativasCusto}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                          <XAxis dataKey="dias" stroke="#94a3b8" />
+                          <YAxis stroke="#94a3b8" tickFormatter={(value) => `R$ ${value.toFixed(0)}`} />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: '#1e293b', 
+                              border: '1px solid #475569',
+                              borderRadius: '8px',
+                              color: '#f1f5f9'
+                            }}
+                            formatter={(value, name) => [
+                              `R$ ${Number(value).toFixed(2)}`, 
+                              name === 'custoPorDia' ? 'Custo por Dia' : 'Custo Total'
+                            ]}
+                          />
+                          <Line type="monotone" dataKey="custoPorDia" stroke="#3B82F6" strokeWidth={3} name="Custo/Dia" />
+                          <Line type="monotone" dataKey="custoTotal" stroke="#10B981" strokeWidth={3} name="Custo Total" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Análise de Breakeven */}
+            <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+              <CardHeader>
+                <CardTitle className="text-white">Análise de Breakeven</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-blue-400">R$ {(estLimpeza + estAmenities + estLavanderia + estManutencao + estEnergia + estPessoal).toFixed(2)}</div>
+                    <div className="text-sm text-slate-400">Custo Mínimo/Dia</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-green-400">R$ {((estLimpeza + estAmenities + estLavanderia + estManutencao + estEnergia + estPessoal) * 1.3).toFixed(2)}</div>
+                    <div className="text-sm text-slate-400">Preço Breakeven (30%)</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-yellow-400">R$ {((estLimpeza + estAmenities + estLavanderia + estManutencao + estEnergia + estPessoal) * 1.5).toFixed(2)}</div>
+                    <div className="text-sm text-slate-400">Preço Recomendado (50%)</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-purple-400">
+                      {currentProperty.adr ? `${(((estLimpeza + estAmenities + estLavanderia + estManutencao + estEnergia + estPessoal) / currentProperty.adr) * 100).toFixed(1)}%` : 'N/A'}
+                    </div>
+                    <div className="text-sm text-slate-400">% do ADR Atual</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
