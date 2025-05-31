@@ -1,11 +1,13 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, CreditCard, Calculator, FileText, Target } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { DollarSign, TrendingUp, Calculator, AlertCircle, Target, Users } from 'lucide-react';
 import { useProperties } from '@/hooks/useProperties';
 
 interface FinancialDashboardProps {
@@ -13,359 +15,507 @@ interface FinancialDashboardProps {
 }
 
 const FinancialDashboard = ({ propertyId }: FinancialDashboardProps) => {
-  const [activeTab, setActiveTab] = useState('overview');
   const { getProperty } = useProperties();
-  
-  // Estados para estimativa de custos
-  const [estLimpeza, setEstLimpeza] = useState(25);
-  const [estAmenities, setEstAmenities] = useState(15);
-  const [estLavanderia, setEstLavanderia] = useState(18);
-  const [estManutencao, setEstManutencao] = useState(12);
-  const [estEnergia, setEstEnergia] = useState(20);
-  const [estPessoal, setEstPessoal] = useState(35);
-  const [diasEstadia, setDiasEstadia] = useState(1);
-  
   const currentProperty = getProperty(propertyId);
 
-  // Carregar dados CSV se disponíveis
-  const csvData = useMemo(() => {
+  const [dadosFinanceiros, setDadosFinanceiros] = useState<any[]>([]);
+  const [kpisFinanceiros, setKpisFinanceiros] = useState({
+    receitaTotal: 0,
+    custoTotal: 0,
+    lucroLiquido: 0,
+    margemLucro: 0,
+    receitaMediaDiaria: 0,
+    ocupacaoMedia: 0
+  });
+
+  // Estados para Estimativa de Custos
+  const [estimativaCustos, setEstimativaCustos] = useState({
+    quartos: currentProperty?.rooms || 100,
+    custosFixosMensais: 150000,
+    custosVariaveisPorQuarto: 45,
+    precoBaseDiaria: 300,
+    ocupacaoAlvo: 75,
+    diasMes: 30
+  });
+
+  const [resultadosEstimativa, setResultadosEstimativa] = useState({
+    custosFixosDiarios: 0,
+    custosVariaveisDia: 0,
+    custoTotalDia: 0,
+    receitaDiaria: 0,
+    lucroBreakeven: 0,
+    margemContribuicao: 0,
+    pontoEquilibrio: 0
+  });
+
+  // Carregar dados financeiros da propriedade
+  useEffect(() => {
+    carregarDadosFinanceiros();
+    calcularEstimativaCustos();
+  }, [propertyId, currentProperty]);
+
+  const carregarDadosFinanceiros = () => {
     try {
-      const reservasData = localStorage.getItem(`reservas_data_${propertyId}`);
-      const custosData = localStorage.getItem(`custos_data_${propertyId}`);
+      const indexKey = `data_index_${propertyId}`;
+      const index = JSON.parse(localStorage.getItem(indexKey) || '{}');
       
-      return {
-        reservas: reservasData ? JSON.parse(reservasData).data : [],
-        custos: custosData ? JSON.parse(custosData).data : []
+      let dadosConsolidados: any[] = [];
+      let kpis = {
+        receitaTotal: 0,
+        custoTotal: 0,
+        lucroLiquido: 0,
+        margemLucro: 0,
+        receitaMediaDiaria: 0,
+        ocupacaoMedia: 0
       };
-    } catch {
-      return { reservas: [], custos: [] };
-    }
-  }, [propertyId]);
 
-  // Dados financeiros simulados baseados na propriedade selecionada
-  const financialData = useMemo(() => {
-    if (!currentProperty) return null;
+      // Carregar dados de reservas para receita
+      if (index.reservas) {
+        const dadosReservas = JSON.parse(localStorage.getItem(index.reservas.storageKey) || '{}');
+        if (dadosReservas.data) {
+          dadosReservas.data.forEach((reserva: any) => {
+            const valor = parseFloat(reserva.valor_total || 0);
+            const situacao = (reserva.situação || '').toLowerCase();
+            
+            if (!situacao.includes('cancelada') && valor > 0) {
+              kpis.receitaTotal += valor;
+            }
+          });
+          
+          console.log(`Receita total das reservas: R$ ${kpis.receitaTotal.toFixed(2)}`);
+        }
+      }
 
-    // Usar dados CSV se disponíveis, senão usar simulados
-    let receita = 0;
-    let custos = 0;
+      // Carregar dados de custos
+      if (index.custos) {
+        const dadosCustos = JSON.parse(localStorage.getItem(index.custos.storageKey) || '{}');
+        if (dadosCustos.data) {
+          dadosCustos.data.forEach((custo: any) => {
+            const valor = parseFloat(custo.valor || custo.custo || 0);
+            if (valor > 0) {
+              kpis.custoTotal += valor;
+            }
+          });
+          
+          console.log(`Custo total: R$ ${kpis.custoTotal.toFixed(2)}`);
+        }
+      }
 
-    if (csvData.reservas.length > 0) {
-      receita = csvData.reservas.reduce((sum: number, reserva: any) => {
-        return sum + (parseFloat(reserva.valor_total) || 0);
-      }, 0);
-    } else {
-      const baseRevenue = currentProperty.rooms * 200;
-      const occupancyRate = currentProperty.occupancy || 75;
-      receita = Math.round(baseRevenue * (occupancyRate / 100) * 30);
-    }
+      // Calcular métricas derivadas
+      kpis.lucroLiquido = kpis.receitaTotal - kpis.custoTotal;
+      kpis.margemLucro = kpis.receitaTotal > 0 ? (kpis.lucroLiquido / kpis.receitaTotal) * 100 : 0;
+      kpis.receitaMediaDiaria = kpis.receitaTotal / 30; // Assumindo um mês
+      kpis.ocupacaoMedia = currentProperty?.occupancy || 75;
 
-    if (csvData.custos.length > 0) {
-      custos = csvData.custos.reduce((sum: number, custo: any) => {
-        return sum + (parseFloat(custo.valor) || 0);
-      }, 0);
-    } else {
-      custos = Math.round(receita * 0.7);
-    }
+      // Gerar dados mensais para gráficos
+      const mesesData = [
+        { mes: 'Jan', receita: Math.round(kpis.receitaTotal * 0.8), custos: Math.round(kpis.custoTotal * 0.85), lucro: 0 },
+        { mes: 'Fev', receita: Math.round(kpis.receitaTotal * 0.9), custos: Math.round(kpis.custoTotal * 0.90), lucro: 0 },
+        { mes: 'Mar', receita: Math.round(kpis.receitaTotal * 1.1), custos: Math.round(kpis.custoTotal * 0.95), lucro: 0 },
+        { mes: 'Abr', receita: Math.round(kpis.receitaTotal * 1.2), custos: Math.round(kpis.custoTotal * 1.0), lucro: 0 },
+        { mes: 'Mai', receita: Math.round(kpis.receitaTotal), custos: Math.round(kpis.custoTotal), lucro: 0 },
+        { mes: 'Jun', receita: Math.round(kpis.receitaTotal * 1.1), custos: Math.round(kpis.custoTotal * 0.98), lucro: 0 }
+      ];
 
-    const profit = receita - custos;
-    const margin = receita > 0 ? (profit / receita) * 100 : 0;
-    const occupancyRate = currentProperty.occupancy || 75;
-    const adr = currentProperty.adr || 250;
-
-    return {
-      revenue: receita,
-      costs: custos,
-      profit: profit,
-      margin: Math.round(margin),
-      otaCommissions: Math.round(receita * 0.12),
-      operationalCosts: Math.round(custos * 0.64),
-      fixedCosts: Math.round(custos * 0.36),
-      occupancy: occupancyRate,
-      adr: adr,
-      revpar: Math.round(adr * (occupancyRate / 100))
-    };
-  }, [currentProperty, propertyId, csvData]);
-
-  // Dados mensais baseados na propriedade
-  const monthlyData = useMemo(() => {
-    if (!financialData) return [];
-
-    return [
-      { month: 'Jan', revenue: financialData.revenue * 0.8, costs: financialData.costs * 0.8, profit: financialData.profit * 0.8 },
-      { month: 'Fev', revenue: financialData.revenue * 0.75, costs: financialData.costs * 0.75, profit: financialData.profit * 0.75 },
-      { month: 'Mar', revenue: financialData.revenue * 0.9, costs: financialData.costs * 0.85, profit: financialData.profit * 1.1 },
-      { month: 'Abr', revenue: financialData.revenue * 1.1, costs: financialData.costs * 0.9, profit: financialData.profit * 1.3 },
-      { month: 'Mai', revenue: financialData.revenue * 1.2, costs: financialData.costs * 0.95, profit: financialData.profit * 1.5 },
-      { month: 'Jun', revenue: financialData.revenue, costs: financialData.costs, profit: financialData.profit }
-    ];
-  }, [financialData]);
-
-  const otaData = [
-    { name: 'Booking.com', revenue: financialData?.revenue * 0.35 || 0, commission: 15, bookings: 145 },
-    { name: 'Expedia', revenue: financialData?.revenue * 0.25 || 0, commission: 18, bookings: 98 },
-    { name: 'Airbnb', revenue: financialData?.revenue * 0.15 || 0, commission: 12, bookings: 67 },
-    { name: 'Direto', revenue: financialData?.revenue * 0.25 || 0, commission: 0, bookings: 234 }
-  ];
-
-  // Cálculo de estimativa de custos por diária
-  const calcularCustoDiaria = () => {
-    const custoBase = estLimpeza + estAmenities + estLavanderia + estManutencao + estEnergia + estPessoal;
-    
-    const calculos = [];
-    for (let dias = 1; dias <= 7; dias++) {
-      const custoTotal = custoBase * dias;
-      const desconto = dias > 1 ? (dias - 1) * 5 : 0; // 5% desconto por dia adicional
-      const custoComDesconto = custoTotal * (1 - desconto / 100);
-      
-      calculos.push({
-        dias,
-        custoTotal: custoComDesconto,
-        custoPorDia: custoComDesconto / dias,
-        economia: custoTotal - custoComDesconto
+      // Calcular lucro para cada mês
+      mesesData.forEach(item => {
+        item.lucro = item.receita - item.custos;
       });
+
+      setDadosFinanceiros(mesesData);
+      setKpisFinanceiros(kpis);
+
+      console.log('KPIs Financeiros atualizados:', kpis);
+
+    } catch (error) {
+      console.error('Erro ao carregar dados financeiros:', error);
     }
-    
-    return calculos;
   };
 
-  const estimativasCusto = calcularCustoDiaria();
+  const calcularEstimativaCustos = () => {
+    const { quartos, custosFixosMensais, custosVariaveisPorQuarto, precoBaseDiaria, ocupacaoAlvo, diasMes } = estimativaCustos;
+    
+    // Cálculos base
+    const custosFixosDiarios = custosFixosMensais / diasMes;
+    const quartosOcupados = Math.round(quartos * (ocupacaoAlvo / 100));
+    const custosVariaveisDia = quartosOcupados * custosVariaveisPorQuarto;
+    const custoTotalDia = custosFixosDiarios + custosVariaveisDia;
+    const receitaDiaria = quartosOcupados * precoBaseDiaria;
+    const lucroBreakeven = receitaDiaria - custoTotalDia;
+    const margemContribuicao = receitaDiaria > 0 ? ((receitaDiaria - custosVariaveisDia) / receitaDiaria) * 100 : 0;
+    const pontoEquilibrio = custosVariaveisPorQuarto > 0 ? custosFixosDiarios / (precoBaseDiaria - custosVariaveisPorQuarto) : 0;
 
-  if (!currentProperty || !financialData) {
+    setResultadosEstimativa({
+      custosFixosDiarios,
+      custosVariaveisDia,
+      custoTotalDia,
+      receitaDiaria,
+      lucroBreakeven,
+      margemContribuicao,
+      pontoEquilibrio
+    });
+  };
+
+  useEffect(() => {
+    calcularEstimativaCustos();
+  }, [estimativaCustos]);
+
+  const atualizarEstimativa = (campo: string, valor: string) => {
+    setEstimativaCustos(prev => ({
+      ...prev,
+      [campo]: parseFloat(valor) || 0
+    }));
+  };
+
+  const formatarMoeda = (valor: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(valor);
+  };
+
+  const dadosBreakeven = [
+    { ocupacao: 50, receita: (estimativaCustos.quartos * 0.5) * estimativaCustos.precoBaseDiaria, custos: resultadosEstimativa.custosFixosDiarios + ((estimativaCustos.quartos * 0.5) * estimativaCustos.custosVariaveisPorQuarto) },
+    { ocupacao: 60, receita: (estimativaCustos.quartos * 0.6) * estimativaCustos.precoBaseDiaria, custos: resultadosEstimativa.custosFixosDiarios + ((estimativaCustos.quartos * 0.6) * estimativaCustos.custosVariaveisPorQuarto) },
+    { ocupacao: 70, receita: (estimativaCustos.quartos * 0.7) * estimativaCustos.precoBaseDiaria, custos: resultadosEstimativa.custosFixosDiarios + ((estimativaCustos.quartos * 0.7) * estimativaCustos.custosVariaveisPorQuarto) },
+    { ocupacao: 80, receita: (estimativaCustos.quartos * 0.8) * estimativaCustos.precoBaseDiaria, custos: resultadosEstimativa.custosFixosDiarios + ((estimativaCustos.quartos * 0.8) * estimativaCustos.custosVariaveisPorQuarto) },
+    { ocupacao: 90, receita: (estimativaCustos.quartos * 0.9) * estimativaCustos.precoBaseDiaria, custos: resultadosEstimativa.custosFixosDiarios + ((estimativaCustos.quartos * 0.9) * estimativaCustos.custosVariaveisPorQuarto) },
+    { ocupacao: 100, receita: estimativaCustos.quartos * estimativaCustos.precoBaseDiaria, custos: resultadosEstimativa.custosFixosDiarios + (estimativaCustos.quartos * estimativaCustos.custosVariaveisPorQuarto) }
+  ];
+
+  // Calcular lucro para cada ponto
+  dadosBreakeven.forEach(item => {
+    (item as any).lucro = item.receita - item.custos;
+  });
+
+  if (!currentProperty) {
     return (
       <div className="text-center text-slate-400 py-12">
-        <p>Propriedade não encontrada ou dados indisponíveis</p>
+        <p>Propriedade não encontrada</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header da Propriedade */}
+      {/* Header */}
       <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-white">{currentProperty.name}</h2>
-              <p className="text-slate-400">{currentProperty.location} • {currentProperty.rooms} quartos</p>
-              {csvData.reservas.length > 0 && (
-                <p className="text-sm text-green-400">✓ Dados CSV carregados: {csvData.reservas.length} reservas</p>
-              )}
+              <h2 className="text-xl font-bold text-white">Dashboard Financeiro</h2>
+              <p className="text-slate-400">{currentProperty.name} • {currentProperty.rooms} quartos</p>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold text-blue-400">
-                R$ {financialData.revpar.toLocaleString()}
+              <p className="text-2xl font-bold text-green-400">
+                {formatarMoeda(kpisFinanceiros.lucroLiquido)}
               </p>
-              <p className="text-sm text-slate-400">RevPAR Atual</p>
+              <p className="text-sm text-slate-400">Lucro Líquido</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* KPIs Financeiros */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm mb-1">Receita Mensal</p>
-                <p className="text-2xl font-bold text-green-400">
-                  R$ {financialData.revenue.toLocaleString()}
-                </p>
-                <div className="flex items-center gap-1 mt-1">
-                  <TrendingUp className="w-4 h-4 text-green-400" />
-                  <span className="text-xs text-green-400">+8.5% vs mês anterior</span>
-                </div>
-              </div>
-              <DollarSign className="w-8 h-8 text-green-400" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm mb-1">Custos Totais</p>
-                <p className="text-2xl font-bold text-red-400">
-                  R$ {financialData.costs.toLocaleString()}
-                </p>
-                <div className="flex items-center gap-1 mt-1">
-                  <TrendingUp className="w-4 h-4 text-red-400" />
-                  <span className="text-xs text-red-400">+3.2% vs mês anterior</span>
-                </div>
-              </div>
-              <AlertTriangle className="w-8 h-8 text-red-400" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm mb-1">Lucro Líquido</p>
-                <p className="text-2xl font-bold text-blue-400">
-                  R$ {financialData.profit.toLocaleString()}
-                </p>
-                <div className="flex items-center gap-1 mt-1">
-                  <TrendingUp className="w-4 h-4 text-blue-400" />
-                  <span className="text-xs text-blue-400">+18.7% vs mês anterior</span>
-                </div>
-              </div>
-              <Calculator className="w-8 h-8 text-blue-400" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm mb-1">Margem de Lucro</p>
-                <p className="text-2xl font-bold text-purple-400">
-                  {financialData.margin}%
-                </p>
-                <div className="flex items-center gap-1 mt-1">
-                  <TrendingUp className="w-4 h-4 text-purple-400" />
-                  <span className="text-xs text-purple-400">+1.8% vs mês anterior</span>
-                </div>
-              </div>
-              <FileText className="w-8 h-8 text-purple-400" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Gráfico de Evolução */}
-      <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-        <CardHeader>
-          <CardTitle className="text-white">Evolução Financeira - {currentProperty.name}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-              <XAxis dataKey="month" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" tickFormatter={(value) => `R$ ${(value/1000).toFixed(0)}k`} />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#1e293b', 
-                  border: '1px solid #475569',
-                  borderRadius: '8px',
-                  color: '#f1f5f9'
-                }}
-                formatter={(value) => [`R$ ${value.toLocaleString()}`, '']}
-              />
-              <Line type="monotone" dataKey="revenue" stroke="#10B981" strokeWidth={3} name="Receita" />
-              <Line type="monotone" dataKey="costs" stroke="#EF4444" strokeWidth={3} name="Custos" />
-              <Line type="monotone" dataKey="profit" stroke="#3B82F6" strokeWidth={3} name="Lucro" />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      {/* Tabs para análises específicas */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-slate-800/50 border-slate-700/50">
-          <TabsTrigger value="overview" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
-            <FileText className="w-4 h-4 mr-2" />
-            Visão Geral
+      <Tabs defaultValue="dashboard" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3 bg-slate-800/50 border border-slate-700/50">
+          <TabsTrigger value="dashboard" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
+            <BarChart className="w-4 h-4 mr-2" />
+            Dashboard
           </TabsTrigger>
-          <TabsTrigger value="ota" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
-            <CreditCard className="w-4 h-4 mr-2" />
-            Canais de Venda
-          </TabsTrigger>
-          <TabsTrigger value="costs" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
-            <AlertTriangle className="w-4 h-4 mr-2" />
-            Análise de Custos
-          </TabsTrigger>
-          <TabsTrigger value="estimates" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
-            <Target className="w-4 h-4 mr-2" />
+          <TabsTrigger value="estimativa" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
+            <Calculator className="w-4 h-4 mr-2" />
             Estimativa de Custos
+          </TabsTrigger>
+          <TabsTrigger value="breakeven" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
+            <Target className="w-4 h-4 mr-2" />
+            Análise Breakeven
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview">
+        <TabsContent value="dashboard" className="space-y-6">
+          {/* KPIs Financeiros */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300">Receita Total</CardTitle>
+                <DollarSign className="h-4 w-4 text-green-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">{formatarMoeda(kpisFinanceiros.receitaTotal)}</div>
+                <p className="text-xs text-slate-400">
+                  Média diária: {formatarMoeda(kpisFinanceiros.receitaMediaDiaria)}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300">Custos Totais</CardTitle>
+                <TrendingUp className="h-4 w-4 text-red-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">{formatarMoeda(kpisFinanceiros.custoTotal)}</div>
+                <p className="text-xs text-slate-400">
+                  % da receita: {kpisFinanceiros.receitaTotal > 0 ? ((kpisFinanceiros.custoTotal/kpisFinanceiros.receitaTotal)*100).toFixed(1) : 0}%
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300">Margem de Lucro</CardTitle>
+                <Target className="h-4 w-4 text-blue-400" />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${kpisFinanceiros.margemLucro >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {kpisFinanceiros.margemLucro.toFixed(1)}%
+                </div>
+                <p className="text-xs text-slate-400">
+                  Lucro: {formatarMoeda(kpisFinanceiros.lucroLiquido)}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300">Ocupação Média</CardTitle>
+                <Users className="h-4 w-4 text-purple-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">{kpisFinanceiros.ocupacaoMedia.toFixed(1)}%</div>
+                <p className="text-xs text-slate-400">
+                  RevPAR: {formatarMoeda(currentProperty.revpar || 0)}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Gráficos */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
               <CardHeader>
-                <CardTitle className="text-white">Distribuição de Custos</CardTitle>
+                <CardTitle className="text-white">Receita vs Custos Mensais</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
-                    <Pie
-                      data={[
-                        { name: 'Operacionais', value: financialData.operationalCosts, fill: '#3B82F6' },
-                        { name: 'Fixos', value: financialData.fixedCosts, fill: '#10B981' },
-                        { name: 'Comissões OTA', value: financialData.otaCommissions, fill: '#F59E0B' }
-                      ]}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={dadosFinanceiros}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                    <XAxis dataKey="mes" stroke="#94a3b8" />
+                    <YAxis stroke="#94a3b8" tickFormatter={(value) => `R$ ${(value/1000).toFixed(0)}k`} />
+                    <Tooltip 
+                      formatter={(value: number, name: string) => [formatarMoeda(value), name === 'receita' ? 'Receita' : name === 'custos' ? 'Custos' : 'Lucro']}
+                      contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px' }}
                     />
-                    <Tooltip formatter={(value) => `R$ ${value.toLocaleString()}`} />
-                  </PieChart>
+                    <Bar dataKey="receita" fill="#10b981" name="receita" />
+                    <Bar dataKey="custos" fill="#ef4444" name="custos" />
+                  </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
             <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
               <CardHeader>
-                <CardTitle className="text-white">Indicadores Operacionais</CardTitle>
+                <CardTitle className="text-white">Evolução do Lucro</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={dadosFinanceiros}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                    <XAxis dataKey="mes" stroke="#94a3b8" />
+                    <YAxis stroke="#94a3b8" tickFormatter={(value) => `R$ ${(value/1000).toFixed(0)}k`} />
+                    <Tooltip 
+                      formatter={(value: number) => [formatarMoeda(value), 'Lucro']}
+                      contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px' }}
+                    />
+                    <Line type="monotone" dataKey="lucro" stroke="#3b82f6" strokeWidth={3} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="estimativa" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Configurações */}
+            <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+              <CardHeader>
+                <CardTitle className="text-white">Configurações</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-300">Ocupação</span>
-                  <span className="text-white font-bold">{financialData.occupancy}%</span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="quartos" className="text-slate-300">Número de Quartos</Label>
+                    <Input
+                      id="quartos"
+                      type="number"
+                      value={estimativaCustos.quartos}
+                      onChange={(e) => atualizarEstimativa('quartos', e.target.value)}
+                      className="bg-slate-700/50 border-slate-600 text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="ocupacao" className="text-slate-300">Ocupação Alvo (%)</Label>
+                    <Input
+                      id="ocupacao"
+                      type="number"
+                      value={estimativaCustos.ocupacaoAlvo}
+                      onChange={(e) => atualizarEstimativa('ocupacaoAlvo', e.target.value)}
+                      className="bg-slate-700/50 border-slate-600 text-white"
+                    />
+                  </div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-300">ADR</span>
-                  <span className="text-white font-bold">R$ {financialData.adr}</span>
+
+                <div>
+                  <Label htmlFor="custosFixos" className="text-slate-300">Custos Fixos Mensais (R$)</Label>
+                  <Input
+                    id="custosFixos"
+                    type="number"
+                    value={estimativaCustos.custosFixosMensais}
+                    onChange={(e) => atualizarEstimativa('custosFixosMensais', e.target.value)}
+                    className="bg-slate-700/50 border-slate-600 text-white"
+                  />
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-300">RevPAR</span>
-                  <span className="text-white font-bold">R$ {financialData.revpar}</span>
+
+                <div>
+                  <Label htmlFor="custosVariaveis" className="text-slate-300">Custos Variáveis por Quarto (R$)</Label>
+                  <Input
+                    id="custosVariaveis"
+                    type="number"
+                    value={estimativaCustos.custosVariaveisPorQuarto}
+                    onChange={(e) => atualizarEstimativa('custosVariaveisPorQuarto', e.target.value)}
+                    className="bg-slate-700/50 border-slate-600 text-white"
+                  />
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-300">Total de Quartos</span>
-                  <span className="text-white font-bold">{currentProperty.rooms}</span>
+
+                <div>
+                  <Label htmlFor="precoBase" className="text-slate-300">Preço Base Diária (R$)</Label>
+                  <Input
+                    id="precoBase"
+                    type="number"
+                    value={estimativaCustos.precoBaseDiaria}
+                    onChange={(e) => atualizarEstimativa('precoBaseDiaria', e.target.value)}
+                    className="bg-slate-700/50 border-slate-600 text-white"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Resultados */}
+            <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+              <CardHeader>
+                <CardTitle className="text-white">Resultados da Estimativa</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-700/30 p-3 rounded-lg">
+                    <p className="text-sm text-slate-400">Custos Fixos/Dia</p>
+                    <p className="text-lg font-bold text-white">{formatarMoeda(resultadosEstimativa.custosFixosDiarios)}</p>
+                  </div>
+                  <div className="bg-slate-700/30 p-3 rounded-lg">
+                    <p className="text-sm text-slate-400">Custos Variáveis/Dia</p>
+                    <p className="text-lg font-bold text-white">{formatarMoeda(resultadosEstimativa.custosVariaveisDia)}</p>
+                  </div>
+                </div>
+
+                <div className="bg-slate-700/30 p-3 rounded-lg">
+                  <p className="text-sm text-slate-400">Custo Total Diário</p>
+                  <p className="text-xl font-bold text-red-400">{formatarMoeda(resultadosEstimativa.custoTotalDia)}</p>
+                </div>
+
+                <div className="bg-slate-700/30 p-3 rounded-lg">
+                  <p className="text-sm text-slate-400">Receita Diária Estimada</p>
+                  <p className="text-xl font-bold text-green-400">{formatarMoeda(resultadosEstimativa.receitaDiaria)}</p>
+                </div>
+
+                <div className={`bg-slate-700/30 p-3 rounded-lg border ${resultadosEstimativa.lucroBreakeven >= 0 ? 'border-green-500/30' : 'border-red-500/30'}`}>
+                  <p className="text-sm text-slate-400">Lucro/Prejuízo Diário</p>
+                  <p className={`text-xl font-bold ${resultadosEstimativa.lucroBreakeven >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {formatarMoeda(resultadosEstimativa.lucroBreakeven)}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-700/30 p-3 rounded-lg">
+                    <p className="text-sm text-slate-400">Margem de Contribuição</p>
+                    <p className="text-lg font-bold text-blue-400">{resultadosEstimativa.margemContribuicao.toFixed(1)}%</p>
+                  </div>
+                  <div className="bg-slate-700/30 p-3 rounded-lg">
+                    <p className="text-sm text-slate-400">Ponto de Equilíbrio</p>
+                    <p className="text-lg font-bold text-yellow-400">{resultadosEstimativa.pontoEquilibrio.toFixed(0)} quartos</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        <TabsContent value="ota">
+        <TabsContent value="breakeven" className="space-y-6">
           <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
             <CardHeader>
-              <CardTitle className="text-white">Performance por Canal de Venda</CardTitle>
+              <CardTitle className="text-white">Análise de Breakeven por Ocupação</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={dadosBreakeven}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                  <XAxis dataKey="ocupacao" stroke="#94a3b8" tickFormatter={(value) => `${value}%`} />
+                  <YAxis stroke="#94a3b8" tickFormatter={(value) => `R$ ${(value/1000).toFixed(0)}k`} />
+                  <Tooltip 
+                    formatter={(value: number, name: string) => [
+                      formatarMoeda(value), 
+                      name === 'receita' ? 'Receita' : name === 'custos' ? 'Custos' : 'Lucro'
+                    ]}
+                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px' }}
+                  />
+                  <Line type="monotone" dataKey="receita" stroke="#10b981" strokeWidth={3} name="receita" />
+                  <Line type="monotone" dataKey="custos" stroke="#ef4444" strokeWidth={3} name="custos" />
+                  <Line type="monotone" dataKey="lucro" stroke="#3b82f6" strokeWidth={3} name="lucro" />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Tabela de Breakeven */}
+          <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+            <CardHeader>
+              <CardTitle className="text-white">Tabela de Breakeven</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-600">
-                      <th className="text-left py-3 px-4 text-slate-300 font-medium">Canal</th>
-                      <th className="text-right py-3 px-4 text-slate-300 font-medium">Receita</th>
-                      <th className="text-center py-3 px-4 text-slate-300 font-medium">Comissão</th>
-                      <th className="text-center py-3 px-4 text-slate-300 font-medium">Reservas</th>
-                      <th className="text-right py-3 px-4 text-slate-300 font-medium">Receita Líquida</th>
+                      <th className="text-left py-3 px-4 text-slate-300">Ocupação</th>
+                      <th className="text-right py-3 px-4 text-slate-300">Quartos</th>
+                      <th className="text-right py-3 px-4 text-slate-300">Receita</th>
+                      <th className="text-right py-3 px-4 text-slate-300">Custos</th>
+                      <th className="text-right py-3 px-4 text-slate-300">Lucro/Prejuízo</th>
+                      <th className="text-center py-3 px-4 text-slate-300">Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {otaData.map((ota, index) => {
-                      const liquidRevenue = ota.revenue * (1 - ota.commission / 100);
+                    {dadosBreakeven.map((item, index) => {
+                      const quartosOcupados = Math.round(estimativaCustos.quartos * (item.ocupacao / 100));
+                      const lucro = (item as any).lucro;
+                      const isBreakeven = lucro >= 0;
+                      
                       return (
                         <tr key={index} className="border-b border-slate-700/50 hover:bg-slate-700/30">
-                          <td className="py-3 px-4 text-white font-medium">{ota.name}</td>
-                          <td className="py-3 px-4 text-right text-white">R$ {ota.revenue.toLocaleString()}</td>
-                          <td className="py-3 px-4 text-center text-yellow-400">{ota.commission}%</td>
-                          <td className="py-3 px-4 text-center text-slate-300">{ota.bookings}</td>
-                          <td className="py-3 px-4 text-right text-green-400">R$ {liquidRevenue.toLocaleString()}</td>
+                          <td className="py-3 px-4 text-white font-medium">{item.ocupacao}%</td>
+                          <td className="py-3 px-4 text-right text-slate-300">{quartosOcupados}</td>
+                          <td className="py-3 px-4 text-right text-green-400">{formatarMoeda(item.receita)}</td>
+                          <td className="py-3 px-4 text-right text-red-400">{formatarMoeda(item.custos)}</td>
+                          <td className={`py-3 px-4 text-right font-medium ${isBreakeven ? 'text-green-400' : 'text-red-400'}`}>
+                            {formatarMoeda(lucro)}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              isBreakeven ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                            }`}>
+                              {isBreakeven ? '✓ Lucro' : '✗ Prejuízo'}
+                            </span>
+                          </td>
                         </tr>
                       );
                     })}
@@ -374,198 +524,6 @@ const FinancialDashboard = ({ propertyId }: FinancialDashboardProps) => {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="costs">
-          <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-            <CardHeader>
-              <CardTitle className="text-white">Análise Detalhada de Custos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                  <XAxis dataKey="month" stroke="#94a3b8" />
-                  <YAxis stroke="#94a3b8" tickFormatter={(value) => `R$ ${(value/1000).toFixed(0)}k`} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#1e293b', 
-                      border: '1px solid #475569',
-                      borderRadius: '8px',
-                      color: '#f1f5f9'
-                    }}
-                    formatter={(value) => [`R$ ${value.toLocaleString()}`, '']}
-                  />
-                  <Bar dataKey="costs" fill="#EF4444" name="Custos Totais" />
-                  <Bar dataKey="profit" fill="#10B981" name="Lucro" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="estimates">
-          <div className="space-y-6">
-            <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-              <CardHeader>
-                <CardTitle className="text-white">Calculadora de Custos por Diária</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Configuração de Custos */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-white">Custos Base (R$/dia)</h3>
-                    
-                    <div>
-                      <label className="block text-sm text-slate-300 mb-1">Limpeza</label>
-                      <Input
-                        type="number"
-                        value={estLimpeza}
-                        onChange={(e) => setEstLimpeza(Number(e.target.value))}
-                        className="bg-slate-700/50 border-slate-600/50 text-white"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm text-slate-300 mb-1">Amenities</label>
-                      <Input
-                        type="number"
-                        value={estAmenities}
-                        onChange={(e) => setEstAmenities(Number(e.target.value))}
-                        className="bg-slate-700/50 border-slate-600/50 text-white"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm text-slate-300 mb-1">Lavanderia</label>
-                      <Input
-                        type="number"
-                        value={estLavanderia}
-                        onChange={(e) => setEstLavanderia(Number(e.target.value))}
-                        className="bg-slate-700/50 border-slate-600/50 text-white"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm text-slate-300 mb-1">Manutenção</label>
-                      <Input
-                        type="number"
-                        value={estManutencao}
-                        onChange={(e) => setEstManutencao(Number(e.target.value))}
-                        className="bg-slate-700/50 border-slate-600/50 text-white"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm text-slate-300 mb-1">Energia</label>
-                      <Input
-                        type="number"
-                        value={estEnergia}
-                        onChange={(e) => setEstEnergia(Number(e.target.value))}
-                        className="bg-slate-700/50 border-slate-600/50 text-white"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm text-slate-300 mb-1">Pessoal</label>
-                      <Input
-                        type="number"
-                        value={estPessoal}
-                        onChange={(e) => setEstPessoal(Number(e.target.value))}
-                        className="bg-slate-700/50 border-slate-600/50 text-white"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Resultados */}
-                  <div className="md:col-span-2">
-                    <h3 className="text-lg font-semibold text-white mb-4">Estimativas por Estadia</h3>
-                    
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-slate-600">
-                            <th className="text-left py-3 px-4 text-slate-300">Dias</th>
-                            <th className="text-right py-3 px-4 text-slate-300">Custo Total</th>
-                            <th className="text-right py-3 px-4 text-slate-300">Custo/Dia</th>
-                            <th className="text-right py-3 px-4 text-slate-300">Economia</th>
-                            <th className="text-right py-3 px-4 text-slate-300">% Economia</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {estimativasCusto.map((est, index) => (
-                            <tr key={index} className="border-b border-slate-700/50 hover:bg-slate-700/30">
-                              <td className="py-3 px-4 text-white font-medium">{est.dias}</td>
-                              <td className="py-3 px-4 text-right text-white">R$ {est.custoTotal.toFixed(2)}</td>
-                              <td className="py-3 px-4 text-right text-blue-400">R$ {est.custoPorDia.toFixed(2)}</td>
-                              <td className="py-3 px-4 text-right text-green-400">R$ {est.economia.toFixed(2)}</td>
-                              <td className="py-3 px-4 text-right text-green-400">
-                                {est.dias > 1 ? `${((est.dias - 1) * 5).toFixed(1)}%` : '-'}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Gráfico de custos */}
-                    <div className="mt-6">
-                      <ResponsiveContainer width="100%" height={250}>
-                        <LineChart data={estimativasCusto}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                          <XAxis dataKey="dias" stroke="#94a3b8" />
-                          <YAxis stroke="#94a3b8" tickFormatter={(value) => `R$ ${value.toFixed(0)}`} />
-                          <Tooltip 
-                            contentStyle={{ 
-                              backgroundColor: '#1e293b', 
-                              border: '1px solid #475569',
-                              borderRadius: '8px',
-                              color: '#f1f5f9'
-                            }}
-                            formatter={(value, name) => [
-                              `R$ ${Number(value).toFixed(2)}`, 
-                              name === 'custoPorDia' ? 'Custo por Dia' : 'Custo Total'
-                            ]}
-                          />
-                          <Line type="monotone" dataKey="custoPorDia" stroke="#3B82F6" strokeWidth={3} name="Custo/Dia" />
-                          <Line type="monotone" dataKey="custoTotal" stroke="#10B981" strokeWidth={3} name="Custo Total" />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Análise de Breakeven */}
-            <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-              <CardHeader>
-                <CardTitle className="text-white">Análise de Breakeven</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-blue-400">R$ {(estLimpeza + estAmenities + estLavanderia + estManutencao + estEnergia + estPessoal).toFixed(2)}</div>
-                    <div className="text-sm text-slate-400">Custo Mínimo/Dia</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-green-400">R$ {((estLimpeza + estAmenities + estLavanderia + estManutencao + estEnergia + estPessoal) * 1.3).toFixed(2)}</div>
-                    <div className="text-sm text-slate-400">Preço Breakeven (30%)</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-yellow-400">R$ {((estLimpeza + estAmenities + estLavanderia + estManutencao + estEnergia + estPessoal) * 1.5).toFixed(2)}</div>
-                    <div className="text-sm text-slate-400">Preço Recomendado (50%)</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-purple-400">
-                      {currentProperty.adr ? `${(((estLimpeza + estAmenities + estLavanderia + estManutencao + estEnergia + estPessoal) / currentProperty.adr) * 100).toFixed(1)}%` : 'N/A'}
-                    </div>
-                    <div className="text-sm text-slate-400">% do ADR Atual</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </TabsContent>
       </Tabs>
     </div>

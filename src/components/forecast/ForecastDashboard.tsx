@@ -22,6 +22,15 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
     metaMesAtual: 50000
   });
 
+  const [dadosReais, setDadosReais] = useState<any[]>([]);
+  const [estatisticasUpload, setEstatisticasUpload] = useState({
+    totalRegistros: 0,
+    receitaTotal: 0,
+    reservasAtivas: 0,
+    cancelamentos: 0,
+    ultimoUpload: null as string | null
+  });
+
   const { obterMetasPropriedade, obterMetaPeriodo } = useMetas();
   const { properties, getProperty } = useProperties();
 
@@ -84,6 +93,91 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
     status: 'warning'
   });
 
+  // Função para carregar dados uploadados da propriedade
+  const carregarDadosUpload = () => {
+    try {
+      const indexKey = `data_index_${propertyId}`;
+      const index = JSON.parse(localStorage.getItem(indexKey) || '{}');
+      
+      console.log(`Buscando dados para propriedade ${propertyId}:`, index);
+      
+      let todosOsDados: any[] = [];
+      let estatisticas = {
+        totalRegistros: 0,
+        receitaTotal: 0,
+        reservasAtivas: 0,
+        cancelamentos: 0,
+        ultimoUpload: null as string | null
+      };
+
+      // Carregar dados de reservas
+      if (index.reservas) {
+        const dadosReservas = JSON.parse(localStorage.getItem(index.reservas.storageKey) || '{}');
+        if (dadosReservas.data) {
+          todosOsDados = [...todosOsDados, ...dadosReservas.data];
+          
+          // Calcular estatísticas das reservas
+          dadosReservas.data.forEach((reserva: any) => {
+            estatisticas.totalRegistros++;
+            
+            const valor = parseFloat(reserva.valor_total || reserva['valor_total'] || 0);
+            if (!isNaN(valor)) {
+              estatisticas.receitaTotal += valor;
+            }
+            
+            const situacao = (reserva.situação || reserva.status || '').toLowerCase();
+            if (situacao.includes('cancelada') || situacao.includes('cancelado')) {
+              estatisticas.cancelamentos++;
+            } else if (situacao.includes('fechada') || situacao.includes('confirmada')) {
+              estatisticas.reservasAtivas++;
+            }
+          });
+          
+          estatisticas.ultimoUpload = dadosReservas.timestamp;
+          console.log(`Dados de reservas carregados: ${dadosReservas.data.length} registros`);
+        }
+      }
+
+      // Carregar outros tipos de dados
+      ['vendas', 'custos', 'eventos'].forEach(tipo => {
+        if (index[tipo]) {
+          const dados = JSON.parse(localStorage.getItem(index[tipo].storageKey) || '{}');
+          if (dados.data) {
+            todosOsDados = [...todosOsDados, ...dados.data];
+            console.log(`Dados de ${tipo} carregados: ${dados.data.length} registros`);
+          }
+        }
+      });
+
+      setDadosReais(todosOsDados);
+      setEstatisticasUpload(estatisticas);
+      
+      console.log(`Total de dados carregados: ${todosOsDados.length} registros`);
+      console.log('Estatísticas:', estatisticas);
+      
+      // Atualizar KPIs com dados reais
+      if (estatisticas.totalRegistros > 0) {
+        const taxaCancelamento = estatisticas.cancelamentos > 0 ? 
+          (estatisticas.cancelamentos / estatisticas.totalRegistros) * 100 : 0;
+        
+        setKpiData(prev => ({
+          ...prev,
+          totalBookings: estatisticas.totalRegistros,
+          cancellationRate: taxaCancelamento,
+          receitaAtual: estatisticas.receitaTotal
+        }));
+        
+        setPaceData(prev => ({
+          ...prev,
+          receitaAtual: estatisticas.receitaTotal
+        }));
+      }
+
+    } catch (error) {
+      console.error('Erro ao carregar dados da propriedade:', error);
+    }
+  };
+
   useEffect(() => {
     if (currentProperty) {
       // Atualizar KPIs baseados na propriedade
@@ -110,6 +204,9 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
         mlForecast: Math.round(item.mlForecast * scaleFactor)
       })));
     }
+    
+    // Carregar dados uploadados
+    carregarDadosUpload();
     
     calcularPace();
     carregarDadosComparativos();
@@ -212,13 +309,36 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Header da Propriedade */}
+      {/* Header da Propriedade com Dados de Upload */}
       <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-white">{currentProperty.name}</h2>
               <p className="text-slate-400">{currentProperty.location} • {currentProperty.rooms} quartos</p>
+              {estatisticasUpload.totalRegistros > 0 && (
+                <div className="mt-2 flex items-center gap-4 text-sm">
+                  <span className="text-green-400">
+                    📊 {estatisticasUpload.totalRegistros} registros carregados
+                  </span>
+                  <span className="text-blue-400">
+                    💰 Receita: {formatarValor(estatisticasUpload.receitaTotal)}
+                  </span>
+                  <span className="text-purple-400">
+                    ✅ {estatisticasUpload.reservasAtivas} ativas
+                  </span>
+                  {estatisticasUpload.cancelamentos > 0 && (
+                    <span className="text-red-400">
+                      ❌ {estatisticasUpload.cancelamentos} canceladas
+                    </span>
+                  )}
+                </div>
+              )}
+              {estatisticasUpload.ultimoUpload && (
+                <p className="text-xs text-slate-500 mt-1">
+                  Último upload: {new Date(estatisticasUpload.ultimoUpload).toLocaleString('pt-BR')}
+                </p>
+              )}
             </div>
             <div className="text-right">
               <p className="text-2xl font-bold text-blue-400">
@@ -281,7 +401,7 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
           <CardContent>
             <div className="text-2xl font-bold text-white">{kpiData.totalBookings.toLocaleString()}</div>
             <p className="text-xs text-slate-400">
-              Cancelamentos: <span className="text-red-400">{kpiData.cancellationRate}%</span>
+              Cancelamentos: <span className="text-red-400">{kpiData.cancellationRate.toFixed(1)}%</span>
             </p>
           </CardContent>
         </Card>
@@ -439,6 +559,30 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Debug Info - Dados Carregados */}
+      {dadosReais.length > 0 && (
+        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+          <CardHeader>
+            <CardTitle className="text-white">Dados Carregados - Debug</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
+              <p className="text-green-400">✅ {dadosReais.length} registros carregados com sucesso</p>
+              <p className="text-blue-400">🏨 Propriedade: {propertyId}</p>
+              <p className="text-purple-400">📊 Tipos de dados encontrados: 
+                {Object.keys(JSON.parse(localStorage.getItem(`data_index_${propertyId}`) || '{}')).join(', ')}
+              </p>
+              <details className="text-slate-300">
+                <summary className="cursor-pointer hover:text-white">Ver amostra dos dados</summary>
+                <pre className="mt-2 p-3 bg-slate-900/50 rounded text-xs overflow-x-auto">
+                  {JSON.stringify(dadosReais.slice(0, 3), null, 2)}
+                </pre>
+              </details>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
