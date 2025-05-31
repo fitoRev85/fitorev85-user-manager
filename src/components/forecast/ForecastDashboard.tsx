@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ComposedChart } from 'recharts';
-import { TrendingUp, Calendar, Users, DollarSign, AlertTriangle, CheckCircle, Target, Activity } from 'lucide-react';
+import { TrendingUp, Calendar, Users, DollarSign, AlertTriangle, CheckCircle, Target, Activity, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMetas } from '@/hooks/useMetas';
 import { useProperties } from '@/hooks/useProperties';
 
@@ -11,266 +12,263 @@ interface ForecastDashboardProps {
 }
 
 const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
+  const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth());
+  const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
+  
   const [kpiData, setKpiData] = useState({
-    currentOccupancy: 78.5,
-    forecast30Days: 82.3,
-    currentRevpar: 225.50,
-    forecastRevpar: 248.20,
-    totalBookings: 1247,
-    cancellationRate: 8.2,
-    receitaAtual: 45000,
-    metaMesAtual: 50000
+    mesAtual: {
+      receita: 0,
+      reservas: 0,
+      ocupacao: 0,
+      adr: 0,
+      revpar: 0,
+      cancelamentos: 0
+    },
+    anoAnterior: {
+      receita: 0,
+      reservas: 0,
+      ocupacao: 0,
+      adr: 0,
+      revpar: 0,
+      cancelamentos: 0
+    },
+    previsao: {
+      receita: 0,
+      reservas: 0,
+      ocupacao: 0,
+      adr: 0,
+      revpar: 0
+    }
   });
 
-  const [dadosReais, setDadosReais] = useState<any[]>([]);
+  const [dadosHistoricos, setDadosHistoricos] = useState<any[]>([]);
+  const [dadosComparativos, setDadosComparativos] = useState<any[]>([]);
   const [estatisticasUpload, setEstatisticasUpload] = useState({
     totalRegistros: 0,
-    receitaTotal: 0,
-    reservasAtivas: 0,
-    cancelamentos: 0,
+    periodoCobertura: '',
     ultimoUpload: null as string | null
   });
 
-  const { obterMetasPropriedade, obterMetaPeriodo } = useMetas();
-  const { properties, getProperty } = useProperties();
+  const { obterMetasPropriedade } = useMetas();
+  const { getProperty } = useProperties();
 
-  // Obter dados da propriedade específica
   const currentProperty = getProperty(propertyId);
 
-  // Dados comparativos específicos da propriedade
-  const [dadosComparativos, setDadosComparativos] = useState([
-    { 
-      mes: 'Jan', 
-      real: 45000, 
-      meta: 50000, 
-      mlForecast: 48000,
-      mesAno: '2025-01'
-    },
-    { 
-      mes: 'Fev', 
-      real: 52000, 
-      meta: 55000, 
-      mlForecast: 53000,
-      mesAno: '2025-02'
-    },
-    { 
-      mes: 'Mar', 
-      real: 48000, 
-      meta: 52000, 
-      mlForecast: 50000,
-      mesAno: '2025-03'
-    },
-    { 
-      mes: 'Abr', 
-      real: 58000, 
-      meta: 60000, 
-      mlForecast: 59000,
-      mesAno: '2025-04'
-    },
-    { 
-      mes: 'Mai', 
-      real: 0, 
-      meta: 62000, 
-      mlForecast: 61000,
-      mesAno: '2025-05'
-    },
-    { 
-      mes: 'Jun', 
-      real: 0, 
-      meta: 65000, 
-      mlForecast: 63000,
-      mesAno: '2025-06'
-    }
-  ]);
+  const mesesNomes = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
 
-  const [paceData, setPaceData] = useState({
-    receitaAtual: 45000,
-    diasDecorridos: 15,
-    diasNoMes: 31,
-    metaMes: 50000,
-    paceCalculado: 0,
-    percentualMeta: 0,
-    status: 'warning'
-  });
-
-  // Função para carregar dados uploadados da propriedade
-  const carregarDadosUpload = () => {
+  // Função para processar dados históricos do CSV
+  const processarDadosHistoricos = () => {
     try {
       const indexKey = `data_index_${propertyId}`;
       const index = JSON.parse(localStorage.getItem(indexKey) || '{}');
       
-      console.log(`Buscando dados para propriedade ${propertyId}:`, index);
-      
       let todosOsDados: any[] = [];
       let estatisticas = {
         totalRegistros: 0,
-        receitaTotal: 0,
-        reservasAtivas: 0,
-        cancelamentos: 0,
+        periodoCobertura: '',
         ultimoUpload: null as string | null
       };
 
-      // Carregar dados de reservas
-      if (index.reservas) {
-        const dadosReservas = JSON.parse(localStorage.getItem(index.reservas.storageKey) || '{}');
-        if (dadosReservas.data) {
-          todosOsDados = [...todosOsDados, ...dadosReservas.data];
-          
-          // Calcular estatísticas das reservas
-          dadosReservas.data.forEach((reserva: any) => {
-            estatisticas.totalRegistros++;
-            
-            const valor = parseFloat(reserva.valor_total || reserva['valor_total'] || 0);
-            if (!isNaN(valor)) {
-              estatisticas.receitaTotal += valor;
-            }
-            
-            const situacao = (reserva.situação || reserva.status || '').toLowerCase();
-            if (situacao.includes('cancelada') || situacao.includes('cancelado')) {
-              estatisticas.cancelamentos++;
-            } else if (situacao.includes('fechada') || situacao.includes('confirmada')) {
-              estatisticas.reservasAtivas++;
-            }
-          });
-          
-          estatisticas.ultimoUpload = dadosReservas.timestamp;
-          console.log(`Dados de reservas carregados: ${dadosReservas.data.length} registros`);
-        }
-      }
-
-      // Carregar outros tipos de dados
-      ['vendas', 'custos', 'eventos'].forEach(tipo => {
+      // Carregar dados de todos os tipos
+      Object.keys(index).forEach(tipo => {
         if (index[tipo]) {
           const dados = JSON.parse(localStorage.getItem(index[tipo].storageKey) || '{}');
-          if (dados.data) {
-            todosOsDados = [...todosOsDados, ...dados.data];
-            console.log(`Dados de ${tipo} carregados: ${dados.data.length} registros`);
+          if (dados.data && Array.isArray(dados.data)) {
+            console.log(`Processando ${dados.data.length} registros de ${tipo}`);
+            
+            dados.data.forEach((registro: any) => {
+              // Normalizar diferentes formatos de data
+              let dataCheckIn = null;
+              let dataCheckOut = null;
+              let valor = 0;
+              let situacao = '';
+
+              // Detectar formato bookingInternalID (novo formato)
+              if (registro.checkInDateTime && registro.checkOutDateTime) {
+                dataCheckIn = new Date(registro.checkInDateTime);
+                dataCheckOut = new Date(registro.checkOutDateTime);
+                valor = parseFloat(registro.totalBookingRate || 0);
+                situacao = registro.channelDescription || 'ativa';
+              }
+              // Formato anterior
+              else if (registro.data_checkin || registro['data_check_in']) {
+                const checkinStr = registro.data_checkin || registro['data_check_in'];
+                dataCheckIn = new Date(checkinStr);
+                if (registro.data_checkout || registro['data_check_out']) {
+                  dataCheckOut = new Date(registro.data_checkout || registro['data_check_out']);
+                }
+                valor = parseFloat(registro.valor_total || registro.valor || 0);
+                situacao = registro.situacao || registro.status || 'ativa';
+              }
+
+              if (dataCheckIn && !isNaN(dataCheckIn.getTime())) {
+                todosOsDados.push({
+                  ...registro,
+                  dataCheckIn,
+                  dataCheckOut,
+                  valor,
+                  situacao: situacao.toLowerCase(),
+                  mes: dataCheckIn.getMonth(),
+                  ano: dataCheckIn.getFullYear(),
+                  tipo
+                });
+                estatisticas.totalRegistros++;
+              }
+            });
+
+            estatisticas.ultimoUpload = dados.timestamp;
           }
         }
       });
 
-      setDadosReais(todosOsDados);
-      setEstatisticasUpload(estatisticas);
-      
-      console.log(`Total de dados carregados: ${todosOsDados.length} registros`);
-      console.log('Estatísticas:', estatisticas);
-      
-      // Atualizar KPIs com dados reais
-      if (estatisticas.totalRegistros > 0) {
-        const taxaCancelamento = estatisticas.cancelamentos > 0 ? 
-          (estatisticas.cancelamentos / estatisticas.totalRegistros) * 100 : 0;
+      // Determinar período de cobertura
+      if (todosOsDados.length > 0) {
+        const datasOrdenadas = todosOsDados
+          .map(d => d.dataCheckIn)
+          .sort((a, b) => a.getTime() - b.getTime());
         
-        setKpiData(prev => ({
-          ...prev,
-          totalBookings: estatisticas.totalRegistros,
-          cancellationRate: taxaCancelamento,
-          receitaAtual: estatisticas.receitaTotal
-        }));
+        const dataInicio = datasOrdenadas[0];
+        const dataFim = datasOrdenadas[datasOrdenadas.length - 1];
         
-        setPaceData(prev => ({
-          ...prev,
-          receitaAtual: estatisticas.receitaTotal
-        }));
+        estatisticas.periodoCobertura = `${dataInicio.toLocaleDateString('pt-BR')} - ${dataFim.toLocaleDateString('pt-BR')}`;
       }
 
+      setDadosHistoricos(todosOsDados);
+      setEstatisticasUpload(estatisticas);
+      
+      console.log(`Dados processados: ${todosOsDados.length} registros`);
+      console.log('Período:', estatisticas.periodoCobertura);
+
     } catch (error) {
-      console.error('Erro ao carregar dados da propriedade:', error);
+      console.error('Erro ao processar dados históricos:', error);
     }
+  };
+
+  // Função para calcular KPIs do mês selecionado
+  const calcularKPIsMes = () => {
+    if (dadosHistoricos.length === 0) return;
+
+    // Dados do mês atual selecionado
+    const dadosMesAtual = dadosHistoricos.filter(d => 
+      d.mes === mesSelecionado && d.ano === anoSelecionado
+    );
+
+    // Dados do mesmo mês no ano anterior
+    const dadosAnoAnterior = dadosHistoricos.filter(d => 
+      d.mes === mesSelecionado && d.ano === anoSelecionado - 1
+    );
+
+    // Calcular métricas para mês atual
+    const mesAtual = calcularMetricas(dadosMesAtual);
+    const anoAnterior = calcularMetricas(dadosAnoAnterior);
+
+    // Previsão baseada em tendência
+    const previsao = {
+      receita: mesAtual.receita > 0 ? mesAtual.receita * 1.05 : anoAnterior.receita * 1.1,
+      reservas: mesAtual.reservas > 0 ? mesAtual.reservas * 1.02 : anoAnterior.reservas * 1.05,
+      ocupacao: mesAtual.ocupacao > 0 ? Math.min(mesAtual.ocupacao * 1.03, 100) : anoAnterior.ocupacao * 1.05,
+      adr: mesAtual.adr > 0 ? mesAtual.adr * 1.02 : anoAnterior.adr * 1.08,
+      revpar: 0
+    };
+    previsao.revpar = (previsao.ocupacao / 100) * previsao.adr;
+
+    setKpiData({
+      mesAtual,
+      anoAnterior,
+      previsao
+    });
+  };
+
+  const calcularMetricas = (dados: any[]) => {
+    if (dados.length === 0) {
+      return { receita: 0, reservas: 0, ocupacao: 0, adr: 0, revpar: 0, cancelamentos: 0 };
+    }
+
+    const reservasAtivas = dados.filter(d => !d.situacao.includes('cancelad'));
+    const receita = reservasAtivas.reduce((sum, d) => sum + d.valor, 0);
+    const cancelamentos = dados.length - reservasAtivas.length;
+    const taxaCancelamento = dados.length > 0 ? (cancelamentos / dados.length) * 100 : 0;
+
+    // Calcular diárias (aproximação)
+    let totalDiarias = 0;
+    reservasAtivas.forEach(reserva => {
+      if (reserva.dataCheckOut && reserva.dataCheckIn) {
+        const dias = Math.max(1, Math.ceil((reserva.dataCheckOut - reserva.dataCheckIn) / (1000 * 60 * 60 * 24)));
+        totalDiarias += dias;
+      } else {
+        totalDiarias += 1; // Default para 1 diária se não houver data de saída
+      }
+    });
+
+    const adr = totalDiarias > 0 ? receita / totalDiarias : 0;
+    const quartos = currentProperty?.rooms || 100;
+    const diasNoMes = new Date(anoSelecionado, mesSelecionado + 1, 0).getDate();
+    const quartosDisponiveis = quartos * diasNoMes;
+    const ocupacao = quartosDisponiveis > 0 ? (totalDiarias / quartosDisponiveis) * 100 : 0;
+    const revpar = (ocupacao / 100) * adr;
+
+    return {
+      receita,
+      reservas: reservasAtivas.length,
+      ocupacao: Math.min(ocupacao, 100),
+      adr,
+      revpar,
+      cancelamentos: taxaCancelamento
+    };
+  };
+
+  // Função para gerar dados comparativos dos últimos 12 meses
+  const gerarDadosComparativos = () => {
+    const dadosComparativos = [];
+    
+    for (let i = 11; i >= 0; i--) {
+      const data = new Date(anoSelecionado, mesSelecionado - i, 1);
+      const mes = data.getMonth();
+      const ano = data.getFullYear();
+      
+      const dadosMes = dadosHistoricos.filter(d => d.mes === mes && d.ano === ano);
+      const dadosAnoAnterior = dadosHistoricos.filter(d => d.mes === mes && d.ano === ano - 1);
+      
+      const metricas = calcularMetricas(dadosMes);
+      const metricasAnoAnterior = calcularMetricas(dadosAnoAnterior);
+      
+      // Buscar meta do sistema
+      const metaEncontrada = obterMetasPropriedade(propertyId, ano).find(meta => 
+        meta.mesAno === `${ano}-${String(mes + 1).padStart(2, '0')}` && meta.tipoMeta === 'receita'
+      );
+
+      dadosComparativos.push({
+        mes: mesesNomes[mes].substring(0, 3),
+        mesCompleto: mesesNomes[mes],
+        ano,
+        receitaAtual: metricas.receita,
+        receitaAnoAnterior: metricasAnoAnterior.receita,
+        meta: metaEncontrada ? metaEncontrada.valorMeta : metricas.receita * 1.1,
+        ocupacaoAtual: metricas.ocupacao,
+        ocupacaoAnoAnterior: metricasAnoAnterior.ocupacao,
+        adrAtual: metricas.adr,
+        adrAnoAnterior: metricasAnoAnterior.adr
+      });
+    }
+    
+    setDadosComparativos(dadosComparativos);
   };
 
   useEffect(() => {
-    if (currentProperty) {
-      // Atualizar KPIs baseados na propriedade
-      const baseRevenue = currentProperty.rooms * 200;
-      const occupancy = currentProperty.occupancy || 75;
-      const adr = currentProperty.adr || 250;
-      
-      setKpiData(prev => ({
-        ...prev,
-        currentOccupancy: occupancy,
-        currentRevpar: currentProperty.revpar || Math.round(adr * (occupancy / 100)),
-        forecastRevpar: Math.round(adr * ((occupancy + 5) / 100)),
-        totalBookings: Math.round(currentProperty.rooms * occupancy * 0.3),
-        receitaAtual: Math.round(baseRevenue * (occupancy / 100)),
-        metaMesAtual: Math.round(baseRevenue * (occupancy / 100) * 1.1)
-      }));
-
-      // Atualizar dados comparativos baseados na propriedade
-      const scaleFactor = currentProperty.rooms / 120; // 120 quartos como base
-      setDadosComparativos(prev => prev.map(item => ({
-        ...item,
-        real: item.real > 0 ? Math.round(item.real * scaleFactor) : 0,
-        meta: Math.round(item.meta * scaleFactor),
-        mlForecast: Math.round(item.mlForecast * scaleFactor)
-      })));
+    if (propertyId) {
+      processarDadosHistoricos();
     }
-    
-    // Carregar dados uploadados
-    carregarDadosUpload();
-    
-    calcularPace();
-    carregarDadosComparativos();
-  }, [propertyId, currentProperty]);
+  }, [propertyId]);
 
-  const calcularPace = () => {
-    const { receitaAtual, diasDecorridos, diasNoMes, metaMes } = paceData;
-    
-    if (diasDecorridos > 0) {
-      const paceCalculado = (receitaAtual / diasDecorridos) * diasNoMes;
-      const percentualMeta = metaMes > 0 ? (paceCalculado / metaMes) * 100 : 0;
-      
-      let status = 'error';
-      if (percentualMeta >= 100) status = 'success';
-      else if (percentualMeta >= 90) status = 'warning';
-      
-      setPaceData(prev => ({
-        ...prev,
-        paceCalculado,
-        percentualMeta,
-        status
-      }));
+  useEffect(() => {
+    if (dadosHistoricos.length > 0) {
+      calcularKPIsMes();
+      gerarDadosComparativos();
     }
-  };
-
-  const carregarDadosComparativos = () => {
-    if (!propertyId) return;
-    
-    // Carregar metas reais do sistema para a propriedade específica
-    const anoAtual = new Date().getFullYear();
-    const metas = obterMetasPropriedade(propertyId, anoAtual);
-    
-    // Atualizar dados comparativos com metas reais
-    const novosComparativos = dadosComparativos.map(item => {
-      const metaEncontrada = metas.find(meta => 
-        meta.mesAno === item.mesAno && meta.tipoMeta === 'receita'
-      );
-      
-      return {
-        ...item,
-        meta: metaEncontrada ? metaEncontrada.valorMeta : item.meta
-      };
-    });
-    
-    setDadosComparativos(novosComparativos);
-  };
-
-  const obterCorStatus = (status: string) => {
-    switch (status) {
-      case 'success': return 'text-green-400';
-      case 'warning': return 'text-yellow-400';
-      case 'error': return 'text-red-400';
-      default: return 'text-slate-400';
-    }
-  };
-
-  const obterIconeStatus = (status: string) => {
-    switch (status) {
-      case 'success': return <CheckCircle className="w-5 h-5 text-green-400" />;
-      case 'warning': return <AlertTriangle className="w-5 h-5 text-yellow-400" />;
-      case 'error': return <AlertTriangle className="w-5 h-5 text-red-400" />;
-      default: return <Activity className="w-5 h-5 text-slate-400" />;
-    }
-  };
+  }, [dadosHistoricos, mesSelecionado, anoSelecionado]);
 
   const formatarValor = (valor: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -280,23 +278,33 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
     }).format(valor);
   };
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-slate-800 border border-slate-600 rounded-lg p-3 shadow-lg">
-          <p className="text-white font-medium">{label}</p>
-          {payload.map((entry: any, index: number) => (
-            <p key={index} style={{ color: entry.color }} className="text-sm">
-              {entry.dataKey === 'real' && 'Real: '}
-              {entry.dataKey === 'meta' && 'Meta: '}
-              {entry.dataKey === 'mlForecast' && 'ML Forecast: '}
-              {formatarValor(entry.value)}
-            </p>
-          ))}
-        </div>
-      );
+  const calcularVariacao = (atual: number, anterior: number) => {
+    if (anterior === 0) return atual > 0 ? 100 : 0;
+    return ((atual - anterior) / anterior) * 100;
+  };
+
+  const obterCorVariacao = (variacao: number) => {
+    if (variacao > 0) return 'text-green-400';
+    if (variacao < 0) return 'text-red-400';
+    return 'text-slate-400';
+  };
+
+  const navegar = (direcao: 'anterior' | 'proximo') => {
+    if (direcao === 'anterior') {
+      if (mesSelecionado === 0) {
+        setMesSelecionado(11);
+        setAnoSelecionado(anoSelecionado - 1);
+      } else {
+        setMesSelecionado(mesSelecionado - 1);
+      }
+    } else {
+      if (mesSelecionado === 11) {
+        setMesSelecionado(0);
+        setAnoSelecionado(anoSelecionado + 1);
+      } else {
+        setMesSelecionado(mesSelecionado + 1);
+      }
     }
-    return null;
   };
 
   if (!currentProperty) {
@@ -309,7 +317,7 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Header da Propriedade com Dados de Upload */}
+      {/* Header com Seletor de Período */}
       <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
@@ -319,138 +327,182 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
               {estatisticasUpload.totalRegistros > 0 && (
                 <div className="mt-2 flex items-center gap-4 text-sm">
                   <span className="text-green-400">
-                    📊 {estatisticasUpload.totalRegistros} registros carregados
+                    📊 {estatisticasUpload.totalRegistros} registros
                   </span>
                   <span className="text-blue-400">
-                    💰 Receita: {formatarValor(estatisticasUpload.receitaTotal)}
+                    📅 Período: {estatisticasUpload.periodoCobertura}
                   </span>
-                  <span className="text-purple-400">
-                    ✅ {estatisticasUpload.reservasAtivas} ativas
-                  </span>
-                  {estatisticasUpload.cancelamentos > 0 && (
-                    <span className="text-red-400">
-                      ❌ {estatisticasUpload.cancelamentos} canceladas
-                    </span>
-                  )}
                 </div>
               )}
-              {estatisticasUpload.ultimoUpload && (
-                <p className="text-xs text-slate-500 mt-1">
-                  Último upload: {new Date(estatisticasUpload.ultimoUpload).toLocaleString('pt-BR')}
-                </p>
-              )}
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold text-blue-400">
-                {formatarValor(kpiData.currentRevpar)}
-              </p>
-              <p className="text-sm text-slate-400">RevPAR Atual</p>
+            
+            {/* Seletor de Mês/Ano */}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => navegar('anterior')}
+                className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors text-slate-400 hover:text-white"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              
+              <div className="text-center">
+                <p className="text-2xl font-bold text-white">
+                  {mesesNomes[mesSelecionado]} {anoSelecionado}
+                </p>
+                <p className="text-sm text-slate-400">Período de Análise</p>
+              </div>
+              
+              <button
+                onClick={() => navegar('proximo')}
+                className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors text-slate-400 hover:text-white"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* KPIs Principais com Pace */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* KPIs Comparativos */}
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {/* Receita */}
         <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-300">Ocupação Atual</CardTitle>
-            <Users className="h-4 w-4 text-blue-400" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-slate-300 flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-green-400" />
+              Receita
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">{kpiData.currentOccupancy}%</div>
-            <p className="text-xs text-slate-400">
-              Previsão 30 dias: <span className="text-green-400">{kpiData.forecast30Days}%</span>
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-300">RevPAR</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">R$ {kpiData.currentRevpar}</div>
-            <p className="text-xs text-slate-400">
-              Previsão: <span className="text-green-400">R$ {kpiData.forecastRevpar}</span>
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-300">Pace vs Meta</CardTitle>
-            <Target className="h-4 w-4 text-purple-400" />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${obterCorStatus(paceData.status)}`}>
-              {paceData.percentualMeta.toFixed(1)}%
+            <div className="space-y-1">
+              <div className="text-lg font-bold text-white">{formatarValor(kpiData.mesAtual.receita)}</div>
+              <div className="text-xs text-slate-400">
+                Ano anterior: {formatarValor(kpiData.anoAnterior.receita)}
+              </div>
+              <div className={`text-xs font-medium ${obterCorVariacao(calcularVariacao(kpiData.mesAtual.receita, kpiData.anoAnterior.receita))}`}>
+                {calcularVariacao(kpiData.mesAtual.receita, kpiData.anoAnterior.receita) > 0 ? '↗' : '↘'} 
+                {Math.abs(calcularVariacao(kpiData.mesAtual.receita, kpiData.anoAnterior.receita)).toFixed(1)}%
+              </div>
             </div>
-            <p className="text-xs text-slate-400">
-              Pace: <span className="text-blue-400">{formatarValor(paceData.paceCalculado)}</span>
-            </p>
           </CardContent>
         </Card>
 
+        {/* Ocupação */}
         <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-300">Total Reservas</CardTitle>
-            <Calendar className="h-4 w-4 text-orange-400" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-slate-300 flex items-center gap-2">
+              <Users className="h-4 w-4 text-blue-400" />
+              Ocupação
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">{kpiData.totalBookings.toLocaleString()}</div>
-            <p className="text-xs text-slate-400">
-              Cancelamentos: <span className="text-red-400">{kpiData.cancellationRate.toFixed(1)}%</span>
-            </p>
+            <div className="space-y-1">
+              <div className="text-lg font-bold text-white">{kpiData.mesAtual.ocupacao.toFixed(1)}%</div>
+              <div className="text-xs text-slate-400">
+                Ano anterior: {kpiData.anoAnterior.ocupacao.toFixed(1)}%
+              </div>
+              <div className={`text-xs font-medium ${obterCorVariacao(calcularVariacao(kpiData.mesAtual.ocupacao, kpiData.anoAnterior.ocupacao))}`}>
+                {calcularVariacao(kpiData.mesAtual.ocupacao, kpiData.anoAnterior.ocupacao) > 0 ? '↗' : '↘'} 
+                {Math.abs(calcularVariacao(kpiData.mesAtual.ocupacao, kpiData.anoAnterior.ocupacao)).toFixed(1)}pp
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ADR */}
+        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-slate-300 flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-purple-400" />
+              ADR
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              <div className="text-lg font-bold text-white">{formatarValor(kpiData.mesAtual.adr)}</div>
+              <div className="text-xs text-slate-400">
+                Ano anterior: {formatarValor(kpiData.anoAnterior.adr)}
+              </div>
+              <div className={`text-xs font-medium ${obterCorVariacao(calcularVariacao(kpiData.mesAtual.adr, kpiData.anoAnterior.adr))}`}>
+                {calcularVariacao(kpiData.mesAtual.adr, kpiData.anoAnterior.adr) > 0 ? '↗' : '↘'} 
+                {Math.abs(calcularVariacao(kpiData.mesAtual.adr, kpiData.anoAnterior.adr)).toFixed(1)}%
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* RevPAR */}
+        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-slate-300 flex items-center gap-2">
+              <Target className="h-4 w-4 text-orange-400" />
+              RevPAR
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              <div className="text-lg font-bold text-white">{formatarValor(kpiData.mesAtual.revpar)}</div>
+              <div className="text-xs text-slate-400">
+                Ano anterior: {formatarValor(kpiData.anoAnterior.revpar)}
+              </div>
+              <div className={`text-xs font-medium ${obterCorVariacao(calcularVariacao(kpiData.mesAtual.revpar, kpiData.anoAnterior.revpar))}`}>
+                {calcularVariacao(kpiData.mesAtual.revpar, kpiData.anoAnterior.revpar) > 0 ? '↗' : '↘'} 
+                {Math.abs(calcularVariacao(kpiData.mesAtual.revpar, kpiData.anoAnterior.revpar)).toFixed(1)}%
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Reservas */}
+        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-slate-300 flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-cyan-400" />
+              Reservas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              <div className="text-lg font-bold text-white">{kpiData.mesAtual.reservas}</div>
+              <div className="text-xs text-slate-400">
+                Ano anterior: {kpiData.anoAnterior.reservas}
+              </div>
+              <div className={`text-xs font-medium ${obterCorVariacao(calcularVariacao(kpiData.mesAtual.reservas, kpiData.anoAnterior.reservas))}`}>
+                {calcularVariacao(kpiData.mesAtual.reservas, kpiData.anoAnterior.reservas) > 0 ? '↗' : '↘'} 
+                {Math.abs(calcularVariacao(kpiData.mesAtual.reservas, kpiData.anoAnterior.reservas)).toFixed(1)}%
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Previsão */}
+        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-slate-300 flex items-center gap-2">
+              <Activity className="h-4 w-4 text-yellow-400" />
+              Previsão
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              <div className="text-lg font-bold text-yellow-400">{formatarValor(kpiData.previsao.receita)}</div>
+              <div className="text-xs text-slate-400">
+                ML Forecast
+              </div>
+              <div className="text-xs text-yellow-400 font-medium">
+                {kpiData.previsao.ocupacao.toFixed(1)}% ocupação
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Alertas de Performance */}
-      <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-        <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            {obterIconeStatus(paceData.status)}
-            Alertas de Performance - {currentProperty.name}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className={`p-4 rounded-lg border ${
-            paceData.status === 'success' ? 'bg-green-500/20 border-green-500/30' :
-            paceData.status === 'warning' ? 'bg-yellow-500/20 border-yellow-500/30' :
-            'bg-red-500/20 border-red-500/30'
-          }`}>
-            {paceData.status === 'success' && (
-              <p className="text-green-400 font-medium">
-                🎉 Excelente! O pace atual está {paceData.percentualMeta.toFixed(1)}% da meta
-              </p>
-            )}
-            {paceData.status === 'warning' && (
-              <p className="text-yellow-400 font-medium">
-                ⚠️ Atenção: Pace em {paceData.percentualMeta.toFixed(1)}% da meta - Requer atenção
-              </p>
-            )}
-            {paceData.status === 'error' && (
-              <p className="text-red-400 font-medium">
-                🚨 Crítico: Pace apenas {paceData.percentualMeta.toFixed(1)}% da meta - Ação necessária
-              </p>
-            )}
-            <div className="mt-2 text-sm text-slate-300">
-              <span>Receita atual: {formatarValor(paceData.receitaAtual)} • </span>
-              <span>Meta do mês: {formatarValor(paceData.metaMes)} • </span>
-              <span>Dias decorridos: {paceData.diasDecorridos}/{paceData.diasNoMes}</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Gráficos Comparativos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Gráfico Real vs Meta vs ML Forecast */}
+        {/* Receita - Últimos 12 Meses */}
         <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
           <CardHeader>
-            <CardTitle className="text-white">Real vs Meta vs ML Forecast</CardTitle>
+            <CardTitle className="text-white">Receita - Últimos 12 Meses</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -458,44 +510,44 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
                 <XAxis dataKey="mes" stroke="#94a3b8" />
                 <YAxis stroke="#94a3b8" tickFormatter={(value) => `R$ ${(value/1000).toFixed(0)}k`} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="real" fill="#10b981" name="Real" opacity={0.8} />
-                <Line type="monotone" dataKey="meta" stroke="#ef4444" strokeWidth={3} name="Meta" strokeDasharray="5 5" />
-                <Line type="monotone" dataKey="mlForecast" stroke="#3b82f6" strokeWidth={2} name="ML Forecast" />
+                <Tooltip 
+                  formatter={(value: number, name: string) => [formatarValor(value), name]}
+                  contentStyle={{ 
+                    backgroundColor: '#1e293b', 
+                    border: '1px solid #475569',
+                    borderRadius: '8px'
+                  }} 
+                />
+                <Bar dataKey="receitaAtual" fill="#10b981" name="Atual" opacity={0.8} />
+                <Bar dataKey="receitaAnoAnterior" fill="#6b7280" name="Ano Anterior" opacity={0.6} />
+                <Line type="monotone" dataKey="meta" stroke="#ef4444" strokeWidth={2} name="Meta" strokeDasharray="5 5" />
               </ComposedChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Gráfico de Performance Mensal */}
+        {/* Ocupação - Últimos 12 Meses */}
         <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
           <CardHeader>
-            <CardTitle className="text-white">Performance vs Meta Mensal</CardTitle>
+            <CardTitle className="text-white">Ocupação - Últimos 12 Meses</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={dadosComparativos}>
+              <LineChart data={dadosComparativos}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
                 <XAxis dataKey="mes" stroke="#94a3b8" />
                 <YAxis stroke="#94a3b8" tickFormatter={(value) => `${value}%`} />
                 <Tooltip 
-                  formatter={(value: number, name: string) => [
-                    `${value.toFixed(1)}%`, 
-                    name === 'percentualMeta' ? 'Atingimento da Meta' : name
-                  ]}
+                  formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
                   contentStyle={{ 
                     backgroundColor: '#1e293b', 
                     border: '1px solid #475569',
-                    borderRadius: '8px',
-                    color: '#f1f5f9'
+                    borderRadius: '8px'
                   }} 
                 />
-                <Bar 
-                  dataKey={(item: any) => item.real > 0 ? (item.real / item.meta) * 100 : 0} 
-                  fill="#3b82f6" 
-                  name="percentualMeta"
-                />
-              </BarChart>
+                <Line type="monotone" dataKey="ocupacaoAtual" stroke="#3b82f6" strokeWidth={3} name="Ocupação Atual" />
+                <Line type="monotone" dataKey="ocupacaoAnoAnterior" stroke="#9ca3af" strokeWidth={2} name="Ano Anterior" strokeDasharray="5 5" />
+              </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
@@ -504,81 +556,112 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
       {/* Tabela Detalhada */}
       <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
         <CardHeader>
-          <CardTitle className="text-white">Detalhamento Mensal - {currentProperty.name}</CardTitle>
+          <CardTitle className="text-white">Análise Comparativa - {mesesNomes[mesSelecionado]} {anoSelecionado}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-600">
-                  <th className="text-left py-3 px-4 text-slate-300 font-medium">Mês</th>
-                  <th className="text-right py-3 px-4 text-slate-300 font-medium">Real</th>
-                  <th className="text-right py-3 px-4 text-slate-300 font-medium">Meta</th>
-                  <th className="text-right py-3 px-4 text-slate-300 font-medium">ML Forecast</th>
-                  <th className="text-center py-3 px-4 text-slate-300 font-medium">Atingimento</th>
-                  <th className="text-center py-3 px-4 text-slate-300 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dadosComparativos.map((item, index) => {
-                  const atingimento = item.real > 0 ? (item.real / item.meta) * 100 : 0;
-                  const statusItem = atingimento >= 100 ? 'success' : atingimento >= 90 ? 'warning' : 'error';
-                  
-                  return (
-                    <tr key={index} className="border-b border-slate-700/50 hover:bg-slate-700/30">
-                      <td className="py-3 px-4 text-white font-medium">{item.mes}</td>
-                      <td className="py-3 px-4 text-right text-white">
-                        {item.real > 0 ? formatarValor(item.real) : '-'}
-                      </td>
-                      <td className="py-3 px-4 text-right text-slate-300">{formatarValor(item.meta)}</td>
-                      <td className="py-3 px-4 text-right text-blue-400">{formatarValor(item.mlForecast)}</td>
-                      <td className={`py-3 px-4 text-center font-medium ${
-                        item.real > 0 ? obterCorStatus(statusItem) : 'text-slate-500'
-                      }`}>
-                        {item.real > 0 ? `${atingimento.toFixed(1)}%` : '-'}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        {item.real > 0 ? (
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            statusItem === 'success' ? 'bg-green-500/20 text-green-400' :
-                            statusItem === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
-                            'bg-red-500/20 text-red-400'
-                          }`}>
-                            {statusItem === 'success' ? '✓ Meta' : 
-                             statusItem === 'warning' ? '⚠ Próximo' : '✗ Abaixo'}
-                          </span>
-                        ) : (
-                          <span className="text-slate-500">Pendente</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Mês Atual */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-white border-b border-slate-600 pb-2">
+                {mesesNomes[mesSelecionado]} {anoSelecionado}
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Receita:</span>
+                  <span className="text-white font-medium">{formatarValor(kpiData.mesAtual.receita)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Reservas:</span>
+                  <span className="text-white font-medium">{kpiData.mesAtual.reservas}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Ocupação:</span>
+                  <span className="text-white font-medium">{kpiData.mesAtual.ocupacao.toFixed(1)}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">ADR:</span>
+                  <span className="text-white font-medium">{formatarValor(kpiData.mesAtual.adr)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">RevPAR:</span>
+                  <span className="text-white font-medium">{formatarValor(kpiData.mesAtual.revpar)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Ano Anterior */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-slate-400 border-b border-slate-600 pb-2">
+                {mesesNomes[mesSelecionado]} {anoSelecionado - 1}
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Receita:</span>
+                  <span className="text-slate-300">{formatarValor(kpiData.anoAnterior.receita)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Reservas:</span>
+                  <span className="text-slate-300">{kpiData.anoAnterior.reservas}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Ocupação:</span>
+                  <span className="text-slate-300">{kpiData.anoAnterior.ocupacao.toFixed(1)}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">ADR:</span>
+                  <span className="text-slate-300">{formatarValor(kpiData.anoAnterior.adr)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">RevPAR:</span>
+                  <span className="text-slate-300">{formatarValor(kpiData.anoAnterior.revpar)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Previsão */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-yellow-400 border-b border-slate-600 pb-2">
+                Previsão ML
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Receita:</span>
+                  <span className="text-yellow-400 font-medium">{formatarValor(kpiData.previsao.receita)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Reservas:</span>
+                  <span className="text-yellow-400 font-medium">{Math.round(kpiData.previsao.reservas)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Ocupação:</span>
+                  <span className="text-yellow-400 font-medium">{kpiData.previsao.ocupacao.toFixed(1)}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">ADR:</span>
+                  <span className="text-yellow-400 font-medium">{formatarValor(kpiData.previsao.adr)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">RevPAR:</span>
+                  <span className="text-yellow-400 font-medium">{formatarValor(kpiData.previsao.revpar)}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Debug Info - Dados Carregados */}
-      {dadosReais.length > 0 && (
+      {/* Debug Info */}
+      {dadosHistoricos.length > 0 && (
         <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
           <CardHeader>
-            <CardTitle className="text-white">Dados Carregados - Debug</CardTitle>
+            <CardTitle className="text-white">Dados Processados</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2 text-sm">
-              <p className="text-green-400">✅ {dadosReais.length} registros carregados com sucesso</p>
-              <p className="text-blue-400">🏨 Propriedade: {propertyId}</p>
-              <p className="text-purple-400">📊 Tipos de dados encontrados: 
-                {Object.keys(JSON.parse(localStorage.getItem(`data_index_${propertyId}`) || '{}')).join(', ')}
-              </p>
-              <details className="text-slate-300">
-                <summary className="cursor-pointer hover:text-white">Ver amostra dos dados</summary>
-                <pre className="mt-2 p-3 bg-slate-900/50 rounded text-xs overflow-x-auto">
-                  {JSON.stringify(dadosReais.slice(0, 3), null, 2)}
-                </pre>
-              </details>
+              <p className="text-green-400">✅ {dadosHistoricos.length} registros processados</p>
+              <p className="text-blue-400">📅 Cobertura: {estatisticasUpload.periodoCobertura}</p>
+              <p className="text-purple-400">🎯 Analisando: {mesesNomes[mesSelecionado]} {anoSelecionado}</p>
+              <p className="text-orange-400">📊 Formatos suportados: bookingInternalID, checkInDateTime, data_checkin</p>
             </div>
           </CardContent>
         </Card>
