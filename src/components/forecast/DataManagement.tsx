@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Upload, Download, Database, FileText, Calendar, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { Upload, Download, Database, FileText, Calendar, CheckCircle, AlertCircle, Clock, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
+import AutoCSVImporter from './AutoCSVImporter';
 
 interface DataManagementProps {
   propertyId: string;
@@ -12,6 +13,8 @@ interface DataManagementProps {
 
 const DataManagement = ({ propertyId }: DataManagementProps) => {
   const { toast } = useToast();
+  const [activeMode, setActiveMode] = useState<'manual' | 'auto'>('auto');
+  
   const [uploadHistory, setUploadHistory] = useState([
     {
       id: 1,
@@ -500,127 +503,176 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Upload de Dados */}
+      {/* Seletor de Modo */}
       <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
-            <Upload className="w-5 h-5 text-blue-400" />
-            Upload de Dados (Excel/CSV) - Propriedade: {propertyId}
+            <Database className="w-5 h-5 text-blue-400" />
+            Gestão de Dados - Propriedade: {propertyId}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Tipo de Dados</label>
-              <select
-                value={dataType}
-                onChange={(e) => setDataType(e.target.value)}
-                className="w-full bg-slate-700/50 border-slate-600/50 text-white rounded-lg px-3 py-2"
-              >
-                {dataTypes.map(type => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-slate-400 mt-1">
-                {dataTypes.find(t => t.value === dataType)?.description}
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Arquivo (Excel/CSV)</label>
-              <Input
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                onChange={handleFileUpload}
-                className="bg-slate-700/50 border-slate-600/50 text-white file:bg-blue-600 file:text-white file:border-0 file:rounded-lg file:px-3 file:py-1"
-              />
-              <p className="text-xs text-slate-400 mt-1">
-                Suporta: .xlsx, .xls, .csv
-              </p>
-            </div>
-
-            <div className="flex items-end">
-              <Button
-                onClick={() => downloadTemplate(dataType)}
-                variant="outline"
-                className="border-slate-600 text-slate-300 hover:bg-slate-700 w-full"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Template Excel
-              </Button>
-            </div>
+          <div className="flex gap-2 mb-4">
+            <Button
+              onClick={() => setActiveMode('auto')}
+              variant={activeMode === 'auto' ? 'default' : 'outline'}
+              className={activeMode === 'auto' ? 'bg-green-600 hover:bg-green-700' : 'border-slate-600 text-slate-300 hover:bg-slate-700'}
+            >
+              <Zap className="w-4 h-4 mr-2" />
+              Importação Automática
+            </Button>
+            <Button
+              onClick={() => setActiveMode('manual')}
+              variant={activeMode === 'manual' ? 'default' : 'outline'}
+              className={activeMode === 'manual' ? 'bg-blue-600 hover:bg-blue-700' : 'border-slate-600 text-slate-300 hover:bg-slate-700'}
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Upload Manual
+            </Button>
           </div>
-
-          {validationResults && (
-            <div className="mb-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
-              <h4 className="text-white font-medium mb-3">Validação do Arquivo</h4>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-3">
-                <div className="text-center">
-                  <div className="text-lg font-bold text-green-400">{validationResults.records}</div>
-                  <div className="text-xs text-slate-400">Registros</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-blue-400">{validationResults.columns.length}</div>
-                  <div className="text-xs text-slate-400">Colunas</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-red-400">{validationResults.errors.length}</div>
-                  <div className="text-xs text-slate-400">Erros</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-yellow-400">{validationResults.warnings.length}</div>
-                  <div className="text-xs text-slate-400">Avisos</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-cyan-400">{validationResults.summary?.dataQuality || 0}%</div>
-                  <div className="text-xs text-slate-400">Qualidade</div>
-                </div>
-              </div>
-
-              {validationResults.errors.length > 0 && (
-                <div className="mb-3">
-                  <div className="text-sm font-medium text-red-400 mb-1">Erros:</div>
-                  {validationResults.errors.map((error: string, index: number) => (
-                    <div key={index} className="text-sm text-red-300">• {error}</div>
-                  ))}
-                </div>
-              )}
-
-              {validationResults.warnings.length > 0 && (
-                <div className="mb-3">
-                  <div className="text-sm font-medium text-yellow-400 mb-1">Avisos:</div>
-                  {validationResults.warnings.map((warning: string, index: number) => (
-                    <div key={index} className="text-sm text-yellow-300">• {warning}</div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <Button
-                  onClick={processUpload}
-                  disabled={!validationResults.isValid}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  Processar Upload
-                </Button>
-                <Button
-                  onClick={() => {
-                    setValidationResults(null);
-                    setSelectedFile(null);
-                    setParsedData([]);
-                  }}
-                  variant="outline"
-                  className="border-slate-600 text-slate-300 hover:bg-slate-700"
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </div>
-          )}
+          
+          <div className="text-sm text-slate-400">
+            {activeMode === 'auto' ? (
+              <>
+                <strong className="text-green-400">Importação Automática:</strong> Validação inteligente, mapeamento flexível de colunas e armazenamento seguro para arquivos CSV estruturados.
+              </>
+            ) : (
+              <>
+                <strong className="text-blue-400">Upload Manual:</strong> Upload tradicional com validação básica para diferentes tipos de dados em Excel ou CSV.
+              </>
+            )}
+          </div>
         </CardContent>
       </Card>
+
+      {/* Conteúdo baseado no modo selecionado */}
+      {activeMode === 'auto' ? (
+        <AutoCSVImporter propertyId={propertyId} />
+      ) : (
+        <>
+          {/* Upload Manual - Componente Original */}
+          <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Upload className="w-5 h-5 text-blue-400" />
+                Upload Manual de Dados (Excel/CSV)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Tipo de Dados</label>
+                  <select
+                    value={dataType}
+                    onChange={(e) => setDataType(e.target.value)}
+                    className="w-full bg-slate-700/50 border-slate-600/50 text-white rounded-lg px-3 py-2"
+                  >
+                    {dataTypes.map(type => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {dataTypes.find(t => t.value === dataType)?.description}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Arquivo (Excel/CSV)</label>
+                  <Input
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    onChange={handleFileUpload}
+                    className="bg-slate-700/50 border-slate-600/50 text-white file:bg-blue-600 file:text-white file:border-0 file:rounded-lg file:px-3 file:py-1"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    Suporta: .xlsx, .xls, .csv
+                  </p>
+                </div>
+
+                <div className="flex items-end">
+                  <Button
+                    onClick={() => downloadTemplate(dataType)}
+                    variant="outline"
+                    className="border-slate-600 text-slate-300 hover:bg-slate-700 w-full"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Template Excel
+                  </Button>
+                </div>
+              </div>
+
+              {validationResults && (
+                <div className="mb-4 p-4 bg-slate-700/50 border border-slate-600/50 rounded-lg">
+                  <h4 className="text-white font-medium mb-3">Validação do Arquivo</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-3">
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-green-400">{validationResults.records}</div>
+                      <div className="text-xs text-slate-400">Registros</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-blue-400">{validationResults.columns.length}</div>
+                      <div className="text-xs text-slate-400">Colunas</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-red-400">{validationResults.errors.length}</div>
+                      <div className="text-xs text-slate-400">Erros</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-yellow-400">{validationResults.warnings.length}</div>
+                      <div className="text-xs text-slate-400">Avisos</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-cyan-400">{validationResults.summary?.dataQuality || 0}%</div>
+                      <div className="text-xs text-slate-400">Qualidade</div>
+                    </div>
+                  </div>
+
+                  {validationResults.errors.length > 0 && (
+                    <div className="mb-3">
+                      <div className="text-sm font-medium text-red-400 mb-1">Erros:</div>
+                      {validationResults.errors.map((error: string, index: number) => (
+                        <div key={index} className="text-sm text-red-300">• {error}</div>
+                      ))}
+                    </div>
+                  )}
+
+                  {validationResults.warnings.length > 0 && (
+                    <div className="mb-3">
+                      <div className="text-sm font-medium text-yellow-400 mb-1">Avisos:</div>
+                      {validationResults.warnings.map((warning: string, index: number) => (
+                        <div key={index} className="text-sm text-yellow-300">• {warning}</div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={processUpload}
+                      disabled={!validationResults.isValid}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      Processar Upload
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setValidationResults(null);
+                        setSelectedFile(null);
+                        setParsedData([]);
+                      }}
+                      variant="outline"
+                      className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {/* Histórico de Uploads */}
       <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
