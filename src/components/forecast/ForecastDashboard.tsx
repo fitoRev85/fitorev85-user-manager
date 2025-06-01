@@ -2,669 +2,436 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ComposedChart } from 'recharts';
-import { TrendingUp, Calendar, Users, DollarSign, AlertTriangle, CheckCircle, Target, Activity, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useMetas } from '@/hooks/useMetas';
-import { useProperties } from '@/hooks/useProperties';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { 
+  TrendingUp, TrendingDown, Users, DollarSign, Calendar, 
+  Percent, BarChart3, LineChart, PieChart, RefreshCw,
+  AlertTriangle, CheckCircle, Clock, Target
+} from 'lucide-react';
+import { 
+  LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, 
+  Tooltip, Legend, ResponsiveContainer, BarChart as RechartsBarChart, 
+  Bar, PieChart as RechartsPieChart, Cell, Area, AreaChart
+} from 'recharts';
 
 interface ForecastDashboardProps {
   propertyId: string;
 }
 
+interface ReservaData {
+  id: string;
+  data_checkin: string;
+  data_checkout: string;
+  valor_total: number;
+  situacao: string;
+  canal?: string;
+  hospede_nome?: string;
+  tipo_quarto?: string;
+  noites?: number;
+  diaria_media?: number;
+}
+
 const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
-  const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth());
-  const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
-  
-  const [kpiData, setKpiData] = useState({
-    mesAtual: {
-      receita: 0,
-      reservas: 0,
-      ocupacao: 0,
-      adr: 0,
-      revpar: 0,
-      cancelamentos: 0
-    },
-    anoAnterior: {
-      receita: 0,
-      reservas: 0,
-      ocupacao: 0,
-      adr: 0,
-      revpar: 0,
-      cancelamentos: 0
-    },
-    previsao: {
-      receita: 0,
-      reservas: 0,
-      ocupacao: 0,
-      adr: 0,
-      revpar: 0
-    }
-  });
+  const [reservas, setReservas] = useState<ReservaData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState<string>('');
 
-  const [dadosHistoricos, setDadosHistoricos] = useState<any[]>([]);
-  const [dadosComparativos, setDadosComparativos] = useState<any[]>([]);
-  const [estatisticasUpload, setEstatisticasUpload] = useState({
-    totalRegistros: 0,
-    periodoCobertura: '',
-    ultimoUpload: null as string | null
-  });
+  const loadData = () => {
+    setLoading(true);
+    console.log('Carregando dados para propriedade:', propertyId);
 
-  const { obterMetasPropriedade } = useMetas();
-  const { getProperty } = useProperties();
-
-  const currentProperty = getProperty(propertyId);
-
-  const mesesNomes = [
-    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-  ];
-
-  // Função para processar dados históricos do CSV
-  const processarDadosHistoricos = () => {
     try {
-      const indexKey = `data_index_${propertyId}`;
-      const index = JSON.parse(localStorage.getItem(indexKey) || '{}');
+      // Tentar carregar dados do novo formato (chunks)
+      const indexKey = `forecast_data_${propertyId}_index`;
+      const indexData = localStorage.getItem(indexKey);
       
-      let todosOsDados: any[] = [];
-      let estatisticas = {
-        totalRegistros: 0,
-        periodoCobertura: '',
-        ultimoUpload: null as string | null
-      };
+      let allData: ReservaData[] = [];
 
-      // Carregar dados de todos os tipos
-      Object.keys(index).forEach(tipo => {
-        if (index[tipo]) {
-          const dados = JSON.parse(localStorage.getItem(index[tipo].storageKey) || '{}');
-          if (dados.data && Array.isArray(dados.data)) {
-            console.log(`Processando ${dados.data.length} registros de ${tipo}`);
-            
-            dados.data.forEach((registro: any) => {
-              // Normalizar diferentes formatos de data
-              let dataCheckIn = null;
-              let dataCheckOut = null;
-              let valor = 0;
-              let situacao = '';
-
-              // Detectar formato bookingInternalID (novo formato)
-              if (registro.checkInDateTime && registro.checkOutDateTime) {
-                dataCheckIn = new Date(registro.checkInDateTime);
-                dataCheckOut = new Date(registro.checkOutDateTime);
-                valor = parseFloat(registro.totalBookingRate || 0);
-                situacao = registro.channelDescription || 'ativa';
-              }
-              // Formato anterior
-              else if (registro.data_checkin || registro['data_check_in']) {
-                const checkinStr = registro.data_checkin || registro['data_check_in'];
-                dataCheckIn = new Date(checkinStr);
-                if (registro.data_checkout || registro['data_check_out']) {
-                  dataCheckOut = new Date(registro.data_checkout || registro['data_check_out']);
-                }
-                valor = parseFloat(registro.valor_total || registro.valor || 0);
-                situacao = registro.situacao || registro.status || 'ativa';
-              }
-
-              if (dataCheckIn && !isNaN(dataCheckIn.getTime())) {
-                todosOsDados.push({
-                  ...registro,
-                  dataCheckIn,
-                  dataCheckOut,
-                  valor,
-                  situacao: situacao.toLowerCase(),
-                  mes: dataCheckIn.getMonth(),
-                  ano: dataCheckIn.getFullYear(),
-                  tipo
-                });
-                estatisticas.totalRegistros++;
-              }
-            });
-
-            estatisticas.ultimoUpload = dados.timestamp;
+      if (indexData) {
+        const index = JSON.parse(indexData);
+        console.log('Carregando dados em chunks:', index);
+        
+        // Carregar todos os chunks
+        for (let i = 0; i < index.totalChunks; i++) {
+          const chunkKey = `${index.storagePrefix}_chunk_${i}`;
+          const chunkData = localStorage.getItem(chunkKey);
+          if (chunkData) {
+            const chunk = JSON.parse(chunkData);
+            allData = [...allData, ...chunk];
           }
         }
-      });
-
-      // Determinar período de cobertura
-      if (todosOsDados.length > 0) {
-        const datasOrdenadas = todosOsDados
-          .map(d => d.dataCheckIn)
-          .sort((a, b) => a.getTime() - b.getTime());
-        
-        const dataInicio = datasOrdenadas[0];
-        const dataFim = datasOrdenadas[datasOrdenadas.length - 1];
-        
-        estatisticas.periodoCobertura = `${dataInicio.toLocaleDateString('pt-BR')} - ${dataFim.toLocaleDateString('pt-BR')}`;
-      }
-
-      setDadosHistoricos(todosOsDados);
-      setEstatisticasUpload(estatisticas);
-      
-      console.log(`Dados processados: ${todosOsDados.length} registros`);
-      console.log('Período:', estatisticas.periodoCobertura);
-
-    } catch (error) {
-      console.error('Erro ao processar dados históricos:', error);
-    }
-  };
-
-  // Função para calcular KPIs do mês selecionado
-  const calcularKPIsMes = () => {
-    if (dadosHistoricos.length === 0) return;
-
-    // Dados do mês atual selecionado
-    const dadosMesAtual = dadosHistoricos.filter(d => 
-      d.mes === mesSelecionado && d.ano === anoSelecionado
-    );
-
-    // Dados do mesmo mês no ano anterior
-    const dadosAnoAnterior = dadosHistoricos.filter(d => 
-      d.mes === mesSelecionado && d.ano === anoSelecionado - 1
-    );
-
-    // Calcular métricas para mês atual
-    const mesAtual = calcularMetricas(dadosMesAtual);
-    const anoAnterior = calcularMetricas(dadosAnoAnterior);
-
-    // Previsão baseada em tendência
-    const previsao = {
-      receita: mesAtual.receita > 0 ? mesAtual.receita * 1.05 : anoAnterior.receita * 1.1,
-      reservas: mesAtual.reservas > 0 ? mesAtual.reservas * 1.02 : anoAnterior.reservas * 1.05,
-      ocupacao: mesAtual.ocupacao > 0 ? Math.min(mesAtual.ocupacao * 1.03, 100) : anoAnterior.ocupacao * 1.05,
-      adr: mesAtual.adr > 0 ? mesAtual.adr * 1.02 : anoAnterior.adr * 1.08,
-      revpar: 0
-    };
-    previsao.revpar = (previsao.ocupacao / 100) * previsao.adr;
-
-    setKpiData({
-      mesAtual,
-      anoAnterior,
-      previsao
-    });
-  };
-
-  const calcularMetricas = (dados: any[]) => {
-    if (dados.length === 0) {
-      return { receita: 0, reservas: 0, ocupacao: 0, adr: 0, revpar: 0, cancelamentos: 0 };
-    }
-
-    const reservasAtivas = dados.filter(d => !d.situacao.includes('cancelad'));
-    const receita = reservasAtivas.reduce((sum, d) => sum + d.valor, 0);
-    const cancelamentos = dados.length - reservasAtivas.length;
-    const taxaCancelamento = dados.length > 0 ? (cancelamentos / dados.length) * 100 : 0;
-
-    // Calcular diárias (aproximação)
-    let totalDiarias = 0;
-    reservasAtivas.forEach(reserva => {
-      if (reserva.dataCheckOut && reserva.dataCheckIn) {
-        const dias = Math.max(1, Math.ceil((reserva.dataCheckOut - reserva.dataCheckIn) / (1000 * 60 * 60 * 24)));
-        totalDiarias += dias;
+        setLastUpdate(index.lastUpdated);
       } else {
-        totalDiarias += 1; // Default para 1 diária se não houver data de saída
+        // Fallback para formatos antigos
+        const legacyKeys = [
+          `reservas_${propertyId}`,
+          `forecast_data_${propertyId}`,
+          `reservations_data_${propertyId}`
+        ];
+
+        for (const key of legacyKeys) {
+          const data = localStorage.getItem(key);
+          if (data) {
+            const parsed = JSON.parse(data);
+            if (Array.isArray(parsed)) {
+              allData = parsed;
+            } else if (parsed.data && Array.isArray(parsed.data)) {
+              allData = parsed.data;
+            }
+            console.log(`Dados carregados de ${key}:`, allData.length, 'registros');
+            break;
+          }
+        }
       }
-    });
 
-    const adr = totalDiarias > 0 ? receita / totalDiarias : 0;
-    const quartos = currentProperty?.rooms || 100;
-    const diasNoMes = new Date(anoSelecionado, mesSelecionado + 1, 0).getDate();
-    const quartosDisponiveis = quartos * diasNoMes;
-    const ocupacao = quartosDisponiveis > 0 ? (totalDiarias / quartosDisponiveis) * 100 : 0;
-    const revpar = (ocupacao / 100) * adr;
+      console.log('Total de dados carregados:', allData.length);
+      console.log('Primeiros 3 registros:', allData.slice(0, 3));
 
-    return {
-      receita,
-      reservas: reservasAtivas.length,
-      ocupacao: Math.min(ocupacao, 100),
-      adr,
-      revpar,
-      cancelamentos: taxaCancelamento
-    };
-  };
-
-  // Função para gerar dados comparativos dos últimos 12 meses
-  const gerarDadosComparativos = () => {
-    const dadosComparativos = [];
-    
-    for (let i = 11; i >= 0; i--) {
-      const data = new Date(anoSelecionado, mesSelecionado - i, 1);
-      const mes = data.getMonth();
-      const ano = data.getFullYear();
-      
-      const dadosMes = dadosHistoricos.filter(d => d.mes === mes && d.ano === ano);
-      const dadosAnoAnterior = dadosHistoricos.filter(d => d.mes === mes && d.ano === ano - 1);
-      
-      const metricas = calcularMetricas(dadosMes);
-      const metricasAnoAnterior = calcularMetricas(dadosAnoAnterior);
-      
-      // Buscar meta do sistema
-      const metaEncontrada = obterMetasPropriedade(propertyId, ano).find(meta => 
-        meta.mesAno === `${ano}-${String(mes + 1).padStart(2, '0')}` && meta.tipoMeta === 'receita'
-      );
-
-      dadosComparativos.push({
-        mes: mesesNomes[mes].substring(0, 3),
-        mesCompleto: mesesNomes[mes],
-        ano,
-        receitaAtual: metricas.receita,
-        receitaAnoAnterior: metricasAnoAnterior.receita,
-        meta: metaEncontrada ? metaEncontrada.valorMeta : metricas.receita * 1.1,
-        ocupacaoAtual: metricas.ocupacao,
-        ocupacaoAnoAnterior: metricasAnoAnterior.ocupacao,
-        adrAtual: metricas.adr,
-        adrAnoAnterior: metricasAnoAnterior.adr
-      });
+      setReservas(allData);
+      if (!lastUpdate && allData.length > 0) {
+        setLastUpdate(new Date().toISOString());
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      setReservas([]);
     }
-    
-    setDadosComparativos(dadosComparativos);
+
+    setLoading(false);
   };
 
   useEffect(() => {
-    if (propertyId) {
-      processarDadosHistoricos();
-    }
+    loadData();
   }, [propertyId]);
 
-  useEffect(() => {
-    if (dadosHistoricos.length > 0) {
-      calcularKPIsMes();
-      gerarDadosComparativos();
+  // Calcular métricas
+  const metrics = React.useMemo(() => {
+    if (reservas.length === 0) {
+      return {
+        totalReservas: 0,
+        receitaTotal: 0,
+        adr: 0,
+        ocupacao: 0,
+        diasForecast: 0
+      };
     }
-  }, [dadosHistoricos, mesSelecionado, anoSelecionado]);
 
-  const formatarValor = (valor: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 0
-    }).format(valor);
-  };
+    const reservasConfirmadas = reservas.filter(r => 
+      r.situacao && !['cancelada', 'canceled', 'cancelled'].includes(r.situacao.toLowerCase())
+    );
 
-  const calcularVariacao = (atual: number, anterior: number) => {
-    if (anterior === 0) return atual > 0 ? 100 : 0;
-    return ((atual - anterior) / anterior) * 100;
-  };
+    const receitaTotal = reservasConfirmadas.reduce((sum, r) => sum + (r.valor_total || 0), 0);
+    const totalNoites = reservasConfirmadas.reduce((sum, r) => sum + (r.noites || 1), 0);
+    const adr = totalNoites > 0 ? receitaTotal / totalNoites : 0;
 
-  const obterCorVariacao = (variacao: number) => {
-    if (variacao > 0) return 'text-green-400';
-    if (variacao < 0) return 'text-red-400';
-    return 'text-slate-400';
-  };
+    // Calcular ocupação (assumindo 100 quartos disponíveis por dia)
+    const dates = [...new Set(reservasConfirmadas.map(r => r.data_checkin))];
+    const quartosOcupados = dates.length;
+    const quartosDisponiveis = dates.length * 100; // 100 quartos por dia
+    const ocupacao = quartosDisponiveis > 0 ? (quartosOcupados / quartosDisponiveis) * 100 : 0;
 
-  const navegar = (direcao: 'anterior' | 'proximo') => {
-    if (direcao === 'anterior') {
-      if (mesSelecionado === 0) {
-        setMesSelecionado(11);
-        setAnoSelecionado(anoSelecionado - 1);
-      } else {
-        setMesSelecionado(mesSelecionado - 1);
+    return {
+      totalReservas: reservasConfirmadas.length,
+      receitaTotal,
+      adr,
+      ocupacao,
+      diasForecast: dates.length
+    };
+  }, [reservas]);
+
+  // Dados para gráficos
+  const chartData = React.useMemo(() => {
+    if (reservas.length === 0) return [];
+
+    // Agrupar por data
+    const dataMap = new Map();
+    
+    reservas.forEach(reserva => {
+      if (!reserva.data_checkin) return;
+      
+      const date = reserva.data_checkin.split('T')[0]; // Formato YYYY-MM-DD
+      
+      if (!dataMap.has(date)) {
+        dataMap.set(date, {
+          date,
+          receita: 0,
+          reservas: 0,
+          adr: 0
+        });
       }
-    } else {
-      if (mesSelecionado === 11) {
-        setMesSelecionado(0);
-        setAnoSelecionado(anoSelecionado + 1);
-      } else {
-        setMesSelecionado(mesSelecionado + 1);
-      }
-    }
-  };
+      
+      const dayData = dataMap.get(date);
+      dayData.receita += reserva.valor_total || 0;
+      dayData.reservas += 1;
+      dayData.adr = dayData.receita / dayData.reservas;
+    });
 
-  if (!currentProperty) {
+    return Array.from(dataMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+  }, [reservas]);
+
+  // Dados por canal
+  const canalData = React.useMemo(() => {
+    if (reservas.length === 0) return [];
+
+    const canalMap = new Map();
+    
+    reservas.forEach(reserva => {
+      const canal = reserva.canal || 'Direto';
+      
+      if (!canalMap.has(canal)) {
+        canalMap.set(canal, {
+          name: canal,
+          value: 0,
+          count: 0
+        });
+      }
+      
+      const data = canalMap.get(canal);
+      data.value += reserva.valor_total || 0;
+      data.count += 1;
+    });
+
+    return Array.from(canalMap.values());
+  }, [reservas]);
+
+  const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1'];
+
+  if (loading) {
     return (
-      <div className="text-center text-slate-400 py-12">
-        <p>Propriedade não encontrada</p>
+      <div className="flex items-center justify-center h-64">
+        <RefreshCw className="w-8 h-8 animate-spin text-blue-400" />
+        <span className="ml-2 text-white">Carregando dados...</span>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header com Seletor de Período */}
+      {/* Header com ações */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-white">Dashboard de Forecast</h2>
+          <p className="text-slate-400">
+            Propriedade: {propertyId} • 
+            {lastUpdate && ` Última atualização: ${new Date(lastUpdate).toLocaleString('pt-BR')}`}
+          </p>
+        </div>
+        <Button onClick={loadData} variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700">
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Atualizar
+        </Button>
+      </div>
+
+      {/* Status dos Dados */}
       <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-white">{currentProperty.name}</h2>
-              <p className="text-slate-400">{currentProperty.location} • {currentProperty.rooms} quartos</p>
-              {estatisticasUpload.totalRegistros > 0 && (
-                <div className="mt-2 flex items-center gap-4 text-sm">
-                  <span className="text-green-400">
-                    📊 {estatisticasUpload.totalRegistros} registros
-                  </span>
-                  <span className="text-blue-400">
-                    📅 Período: {estatisticasUpload.periodoCobertura}
-                  </span>
-                </div>
-              )}
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            {reservas.length > 0 ? (
+              <>
+                <CheckCircle className="w-5 h-5 text-green-400" />
+                <span className="text-green-400 font-medium">
+                  {reservas.length} registros carregados
+                </span>
+              </>
+            ) : (
+              <>
+                <AlertTriangle className="w-5 h-5 text-yellow-400" />
+                <span className="text-yellow-400 font-medium">
+                  Nenhum dado encontrado - importe dados via módulo de Dados
+                </span>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Métricas Principais */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-500/20 rounded-lg">
+                <Calendar className="w-5 h-5 text-blue-400" />
+              </div>
+              <div>
+                <p className="text-slate-400 text-sm">Reservas</p>
+                <p className="text-white text-xl font-bold">{metrics.totalReservas}</p>
+              </div>
             </div>
-            
-            {/* Seletor de Mês/Ano */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navegar('anterior')}
-                className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors text-slate-400 hover:text-white"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              
-              <div className="text-center">
-                <p className="text-2xl font-bold text-white">
-                  {mesesNomes[mesSelecionado]} {anoSelecionado}
+          </CardContent>
+        </Card>
+
+        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-500/20 rounded-lg">
+                <DollarSign className="w-5 h-5 text-green-400" />
+              </div>
+              <div>
+                <p className="text-slate-400 text-sm">Receita Total</p>
+                <p className="text-white text-xl font-bold">
+                  R$ {metrics.receitaTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
-                <p className="text-sm text-slate-400">Período de Análise</p>
-              </div>
-              
-              <button
-                onClick={() => navegar('proximo')}
-                className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors text-slate-400 hover:text-white"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* KPIs Comparativos */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {/* Receita */}
-        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-300 flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-green-400" />
-              Receita
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <div className="text-lg font-bold text-white">{formatarValor(kpiData.mesAtual.receita)}</div>
-              <div className="text-xs text-slate-400">
-                Ano anterior: {formatarValor(kpiData.anoAnterior.receita)}
-              </div>
-              <div className={`text-xs font-medium ${obterCorVariacao(calcularVariacao(kpiData.mesAtual.receita, kpiData.anoAnterior.receita))}`}>
-                {calcularVariacao(kpiData.mesAtual.receita, kpiData.anoAnterior.receita) > 0 ? '↗' : '↘'} 
-                {Math.abs(calcularVariacao(kpiData.mesAtual.receita, kpiData.anoAnterior.receita)).toFixed(1)}%
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Ocupação */}
         <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-300 flex items-center gap-2">
-              <Users className="h-4 w-4 text-blue-400" />
-              Ocupação
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <div className="text-lg font-bold text-white">{kpiData.mesAtual.ocupacao.toFixed(1)}%</div>
-              <div className="text-xs text-slate-400">
-                Ano anterior: {kpiData.anoAnterior.ocupacao.toFixed(1)}%
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-500/20 rounded-lg">
+                <TrendingUp className="w-5 h-5 text-purple-400" />
               </div>
-              <div className={`text-xs font-medium ${obterCorVariacao(calcularVariacao(kpiData.mesAtual.ocupacao, kpiData.anoAnterior.ocupacao))}`}>
-                {calcularVariacao(kpiData.mesAtual.ocupacao, kpiData.anoAnterior.ocupacao) > 0 ? '↗' : '↘'} 
-                {Math.abs(calcularVariacao(kpiData.mesAtual.ocupacao, kpiData.anoAnterior.ocupacao)).toFixed(1)}pp
+              <div>
+                <p className="text-slate-400 text-sm">ADR</p>
+                <p className="text-white text-xl font-bold">
+                  R$ {metrics.adr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* ADR */}
         <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-300 flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-purple-400" />
-              ADR
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <div className="text-lg font-bold text-white">{formatarValor(kpiData.mesAtual.adr)}</div>
-              <div className="text-xs text-slate-400">
-                Ano anterior: {formatarValor(kpiData.anoAnterior.adr)}
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-cyan-500/20 rounded-lg">
+                <Percent className="w-5 h-5 text-cyan-400" />
               </div>
-              <div className={`text-xs font-medium ${obterCorVariacao(calcularVariacao(kpiData.mesAtual.adr, kpiData.anoAnterior.adr))}`}>
-                {calcularVariacao(kpiData.mesAtual.adr, kpiData.anoAnterior.adr) > 0 ? '↗' : '↘'} 
-                {Math.abs(calcularVariacao(kpiData.mesAtual.adr, kpiData.anoAnterior.adr)).toFixed(1)}%
+              <div>
+                <p className="text-slate-400 text-sm">Ocupação</p>
+                <p className="text-white text-xl font-bold">{metrics.ocupacao.toFixed(1)}%</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* RevPAR */}
         <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-300 flex items-center gap-2">
-              <Target className="h-4 w-4 text-orange-400" />
-              RevPAR
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <div className="text-lg font-bold text-white">{formatarValor(kpiData.mesAtual.revpar)}</div>
-              <div className="text-xs text-slate-400">
-                Ano anterior: {formatarValor(kpiData.anoAnterior.revpar)}
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-orange-500/20 rounded-lg">
+                <Clock className="w-5 h-5 text-orange-400" />
               </div>
-              <div className={`text-xs font-medium ${obterCorVariacao(calcularVariacao(kpiData.mesAtual.revpar, kpiData.anoAnterior.revpar))}`}>
-                {calcularVariacao(kpiData.mesAtual.revpar, kpiData.anoAnterior.revpar) > 0 ? '↗' : '↘'} 
-                {Math.abs(calcularVariacao(kpiData.mesAtual.revpar, kpiData.anoAnterior.revpar)).toFixed(1)}%
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Reservas */}
-        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-300 flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-cyan-400" />
-              Reservas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <div className="text-lg font-bold text-white">{kpiData.mesAtual.reservas}</div>
-              <div className="text-xs text-slate-400">
-                Ano anterior: {kpiData.anoAnterior.reservas}
-              </div>
-              <div className={`text-xs font-medium ${obterCorVariacao(calcularVariacao(kpiData.mesAtual.reservas, kpiData.anoAnterior.reservas))}`}>
-                {calcularVariacao(kpiData.mesAtual.reservas, kpiData.anoAnterior.reservas) > 0 ? '↗' : '↘'} 
-                {Math.abs(calcularVariacao(kpiData.mesAtual.reservas, kpiData.anoAnterior.reservas)).toFixed(1)}%
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Previsão */}
-        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-300 flex items-center gap-2">
-              <Activity className="h-4 w-4 text-yellow-400" />
-              Previsão
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <div className="text-lg font-bold text-yellow-400">{formatarValor(kpiData.previsao.receita)}</div>
-              <div className="text-xs text-slate-400">
-                ML Forecast
-              </div>
-              <div className="text-xs text-yellow-400 font-medium">
-                {kpiData.previsao.ocupacao.toFixed(1)}% ocupação
+              <div>
+                <p className="text-slate-400 text-sm">Período</p>
+                <p className="text-white text-xl font-bold">{metrics.diasForecast} dias</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Gráficos Comparativos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Receita - Últimos 12 Meses */}
-        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardHeader>
-            <CardTitle className="text-white">Receita - Últimos 12 Meses</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <ComposedChart data={dadosComparativos}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                <XAxis dataKey="mes" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" tickFormatter={(value) => `R$ ${(value/1000).toFixed(0)}k`} />
-                <Tooltip 
-                  formatter={(value: number, name: string) => [formatarValor(value), name]}
-                  contentStyle={{ 
-                    backgroundColor: '#1e293b', 
-                    border: '1px solid #475569',
-                    borderRadius: '8px'
-                  }} 
-                />
-                <Bar dataKey="receitaAtual" fill="#10b981" name="Atual" opacity={0.8} />
-                <Bar dataKey="receitaAnoAnterior" fill="#6b7280" name="Ano Anterior" opacity={0.6} />
-                <Line type="monotone" dataKey="meta" stroke="#ef4444" strokeWidth={2} name="Meta" strokeDasharray="5 5" />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+      {/* Gráficos */}
+      {reservas.length > 0 && (
+        <Tabs defaultValue="timeline" className="space-y-4">
+          <TabsList className="bg-slate-800/50 border border-slate-700/50">
+            <TabsTrigger value="timeline" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
+              <LineChart className="w-4 h-4 mr-2" />
+              Timeline
+            </TabsTrigger>
+            <TabsTrigger value="canais" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
+              <PieChart className="w-4 h-4 mr-2" />
+              Canais
+            </TabsTrigger>
+            <TabsTrigger value="comparativo" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Comparativo
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Ocupação - Últimos 12 Meses */}
-        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardHeader>
-            <CardTitle className="text-white">Ocupação - Últimos 12 Meses</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={dadosComparativos}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                <XAxis dataKey="mes" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" tickFormatter={(value) => `${value}%`} />
-                <Tooltip 
-                  formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
-                  contentStyle={{ 
-                    backgroundColor: '#1e293b', 
-                    border: '1px solid #475569',
-                    borderRadius: '8px'
-                  }} 
-                />
-                <Line type="monotone" dataKey="ocupacaoAtual" stroke="#3b82f6" strokeWidth={3} name="Ocupação Atual" />
-                <Line type="monotone" dataKey="ocupacaoAnoAnterior" stroke="#9ca3af" strokeWidth={2} name="Ano Anterior" strokeDasharray="5 5" />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+          <TabsContent value="timeline" className="space-y-4">
+            <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+              <CardHeader>
+                <CardTitle className="text-white">Receita por Período</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis dataKey="date" stroke="#9CA3AF" />
+                    <YAxis stroke="#9CA3AF" />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#1F2937', 
+                        border: '1px solid #374151',
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="receita" 
+                      stroke="#3B82F6" 
+                      fill="#3B82F6"
+                      fillOpacity={0.3}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-      {/* Tabela Detalhada */}
-      <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-        <CardHeader>
-          <CardTitle className="text-white">Análise Comparativa - {mesesNomes[mesSelecionado]} {anoSelecionado}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Mês Atual */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white border-b border-slate-600 pb-2">
-                {mesesNomes[mesSelecionado]} {anoSelecionado}
-              </h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Receita:</span>
-                  <span className="text-white font-medium">{formatarValor(kpiData.mesAtual.receita)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Reservas:</span>
-                  <span className="text-white font-medium">{kpiData.mesAtual.reservas}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Ocupação:</span>
-                  <span className="text-white font-medium">{kpiData.mesAtual.ocupacao.toFixed(1)}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">ADR:</span>
-                  <span className="text-white font-medium">{formatarValor(kpiData.mesAtual.adr)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">RevPAR:</span>
-                  <span className="text-white font-medium">{formatarValor(kpiData.mesAtual.revpar)}</span>
-                </div>
-              </div>
-            </div>
+          <TabsContent value="canais" className="space-y-4">
+            <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+              <CardHeader>
+                <CardTitle className="text-white">Distribuição por Canal</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <RechartsPieChart>
+                    <Pie
+                      dataKey="value"
+                      data={canalData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      label
+                    >
+                      {canalData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#1F2937', 
+                        border: '1px solid #374151',
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <Legend />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            {/* Ano Anterior */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-slate-400 border-b border-slate-600 pb-2">
-                {mesesNomes[mesSelecionado]} {anoSelecionado - 1}
-              </h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Receita:</span>
-                  <span className="text-slate-300">{formatarValor(kpiData.anoAnterior.receita)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Reservas:</span>
-                  <span className="text-slate-300">{kpiData.anoAnterior.reservas}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Ocupação:</span>
-                  <span className="text-slate-300">{kpiData.anoAnterior.ocupacao.toFixed(1)}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">ADR:</span>
-                  <span className="text-slate-300">{formatarValor(kpiData.anoAnterior.adr)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">RevPAR:</span>
-                  <span className="text-slate-300">{formatarValor(kpiData.anoAnterior.revpar)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Previsão */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-yellow-400 border-b border-slate-600 pb-2">
-                Previsão ML
-              </h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Receita:</span>
-                  <span className="text-yellow-400 font-medium">{formatarValor(kpiData.previsao.receita)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Reservas:</span>
-                  <span className="text-yellow-400 font-medium">{Math.round(kpiData.previsao.reservas)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Ocupação:</span>
-                  <span className="text-yellow-400 font-medium">{kpiData.previsao.ocupacao.toFixed(1)}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">ADR:</span>
-                  <span className="text-yellow-400 font-medium">{formatarValor(kpiData.previsao.adr)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">RevPAR:</span>
-                  <span className="text-yellow-400 font-medium">{formatarValor(kpiData.previsao.revpar)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Debug Info */}
-      {dadosHistoricos.length > 0 && (
-        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardHeader>
-            <CardTitle className="text-white">Dados Processados</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 text-sm">
-              <p className="text-green-400">✅ {dadosHistoricos.length} registros processados</p>
-              <p className="text-blue-400">📅 Cobertura: {estatisticasUpload.periodoCobertura}</p>
-              <p className="text-purple-400">🎯 Analisando: {mesesNomes[mesSelecionado]} {anoSelecionado}</p>
-              <p className="text-orange-400">📊 Formatos suportados: bookingInternalID, checkInDateTime, data_checkin</p>
-            </div>
-          </CardContent>
-        </Card>
+          <TabsContent value="comparativo" className="space-y-4">
+            <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+              <CardHeader>
+                <CardTitle className="text-white">ADR vs Reservas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <RechartsBarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis dataKey="date" stroke="#9CA3AF" />
+                    <YAxis stroke="#9CA3AF" />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#1F2937', 
+                        border: '1px solid #374151',
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <Legend />
+                    <Bar dataKey="adr" fill="#8884d8" name="ADR (R$)" />
+                    <Bar dataKey="reservas" fill="#82ca9d" name="Reservas" />
+                  </RechartsBarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );

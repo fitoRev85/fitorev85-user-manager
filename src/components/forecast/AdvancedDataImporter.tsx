@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,12 +27,6 @@ interface FieldMapping {
   dataType: 'string' | 'number' | 'date' | 'email' | 'calculated';
 }
 
-interface DataTransformation {
-  type: 'formula' | 'lookup' | 'concatenation' | 'format';
-  formula?: string;
-  parameters?: Record<string, any>;
-}
-
 const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -45,62 +40,19 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
   const [importing, setImporting] = useState(false);
   const [validationResults, setValidationResults] = useState<any>(null);
 
-  // Campos do sistema para mapeamento - expandido para hotéis
+  // Campos do sistema simplificados para compatibilidade com ForecastDashboard
   const systemFields = [
-    // Informações da Reserva
-    { key: 'reservationId', label: 'ID da Reserva', type: 'string', required: true, category: 'Reserva' },
-    { key: 'checkInDate', label: 'Data Check-in (D IN)', type: 'date', required: true, category: 'Reserva' },
-    { key: 'checkOutDate', label: 'Data Check-out (D OUT)', type: 'date', required: true, category: 'Reserva' },
-    { key: 'nights', label: 'Noites', type: 'number', required: false, category: 'Reserva' },
-    { key: 'status', label: 'Status da Reserva', type: 'string', required: true, category: 'Reserva' },
-    
-    // Informações do Quarto
-    { key: 'roomType', label: 'Tipo de Quarto', type: 'string', required: false, category: 'Quarto' },
-    { key: 'roomNumber', label: 'Número do Quarto', type: 'string', required: false, category: 'Quarto' },
-    { key: 'roomCategory', label: 'Categoria do Quarto', type: 'string', required: false, category: 'Quarto' },
-    
-    // Valores Financeiros - campos compatíveis com o dashboard
+    // Campos principais para dashboard
+    { key: 'id', label: 'ID da Reserva', type: 'string', required: true, category: 'Reserva' },
+    { key: 'data_checkin', label: 'Data Check-in', type: 'date', required: true, category: 'Reserva' },
+    { key: 'data_checkout', label: 'Data Check-out', type: 'date', required: true, category: 'Reserva' },
     { key: 'valor_total', label: 'Valor Total', type: 'number', required: true, category: 'Financeiro' },
-    { key: 'dailyRate', label: 'Diária Média', type: 'number', required: false, category: 'Financeiro' },
-    { key: 'adr', label: 'ADR (Average Daily Rate)', type: 'calculated', required: false, category: 'Financeiro' },
-    { key: 'revenue', label: 'Receita', type: 'number', required: false, category: 'Financeiro' },
-    { key: 'taxes', label: 'Impostos', type: 'number', required: false, category: 'Financeiro' },
-    { key: 'commission', label: 'Comissão', type: 'number', required: false, category: 'Financeiro' },
-    
-    // Canal de Venda
-    { key: 'channel', label: 'Canal/Origem', type: 'string', required: false, category: 'Canal' },
-    { key: 'channelType', label: 'Tipo de Canal', type: 'string', required: false, category: 'Canal' },
-    { key: 'bookingSource', label: 'Fonte da Reserva', type: 'string', required: false, category: 'Canal' },
-    
-    // Informações do Hóspede
-    { key: 'guestName', label: 'Nome do Hóspede', type: 'string', required: true, category: 'Hóspede' },
-    { key: 'guestEmail', label: 'Email do Hóspede', type: 'email', required: false, category: 'Hóspede' },
-    { key: 'guestPhone', label: 'Telefone do Hóspede', type: 'string', required: false, category: 'Hóspede' },
-    { key: 'guestCount', label: 'Número de Hóspedes', type: 'number', required: false, category: 'Hóspede' },
-    { key: 'guestCountry', label: 'País do Hóspede', type: 'string', required: false, category: 'Hóspede' },
-    
-    // Datas e Controle
-    { key: 'bookingDate', label: 'Data da Reserva', type: 'date', required: false, category: 'Controle' },
-    { key: 'confirmationDate', label: 'Data de Confirmação', type: 'date', required: false, category: 'Controle' },
-    { key: 'cancellationDate', label: 'Data de Cancelamento', type: 'date', required: false, category: 'Controle' },
-    
-    // Status compatível com dashboard
-    { key: 'situação', label: 'Situação da Reserva', type: 'string', required: false, category: 'Controle' },
-    
-    // Campos Customizados
-    { key: 'customField1', label: 'Campo Personalizado 1', type: 'string', required: false, category: 'Personalizado' },
-    { key: 'customField2', label: 'Campo Personalizado 2', type: 'string', required: false, category: 'Personalizado' },
-    { key: 'customField3', label: 'Campo Personalizado 3', type: 'number', required: false, category: 'Personalizado' }
-  ];
-
-  // Transformações predefinidas
-  const commonTransformations = [
-    { id: 'adr_calculation', label: 'Calcular ADR (Valor Total / Noites)', formula: '=TOTAL_VALUE/NIGHTS' },
-    { id: 'revenue_calculation', label: 'Calcular Receita (Valor - Impostos)', formula: '=TOTAL_VALUE-TAXES' },
-    { id: 'occupancy_rate', label: 'Taxa de Ocupação', formula: '=ROOMS_OCCUPIED/TOTAL_ROOMS*100' },
-    { id: 'date_format', label: 'Formatar Data (DD/MM/AAAA)', formula: 'DATE_FORMAT' },
-    { id: 'uppercase', label: 'Converter para Maiúsculo', formula: 'UPPER' },
-    { id: 'lowercase', label: 'Converter para Minúsculo', formula: 'LOWER' }
+    { key: 'situacao', label: 'Situação', type: 'string', required: true, category: 'Status' },
+    { key: 'canal', label: 'Canal/Origem', type: 'string', required: false, category: 'Canal' },
+    { key: 'hospede_nome', label: 'Nome do Hóspede', type: 'string', required: false, category: 'Hóspede' },
+    { key: 'tipo_quarto', label: 'Tipo de Quarto', type: 'string', required: false, category: 'Quarto' },
+    { key: 'noites', label: 'Número de Noites', type: 'number', required: false, category: 'Reserva' },
+    { key: 'diaria_media', label: 'Diária Média', type: 'number', required: false, category: 'Financeiro' }
   ];
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,6 +80,7 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
         await processCSVFile(file);
       }
     } catch (error) {
+      console.error('Erro ao processar arquivo:', error);
       toast({
         title: "Erro ao processar arquivo",
         description: error instanceof Error ? error.message : 'Erro desconhecido',
@@ -150,7 +103,6 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
       }
 
       const headers = (jsonData[0] as string[]) || [];
-      // Filter out empty headers
       const validHeaders = headers.filter(header => header && header.toString().trim() !== '');
       const rows = jsonData.slice(1) as any[][];
       
@@ -193,7 +145,7 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
 
     const headers = lines[0].split(',')
       .map(h => h.trim().replace(/"/g, ''))
-      .filter(h => h && h.trim() !== ''); // Filter out empty headers
+      .filter(h => h && h.trim() !== '');
     
     const rows = lines.slice(1).map(line => {
       const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
@@ -220,20 +172,18 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
   const generateSuggestedMappings = (headers: string[]) => {
     const mappings: FieldMapping[] = [];
 
-    // Mapeamento inteligente baseado em palavras-chave
+    // Mapeamento inteligente
     const keywordMappings: Record<string, string[]> = {
-      'reservationId': ['id', 'booking', 'reserva', 'reservation'],
-      'checkInDate': ['checkin', 'entrada', 'd in', 'data entrada', 'check in'],
-      'checkOutDate': ['checkout', 'saida', 'd out', 'data saida', 'check out'],
-      'valor_total': ['valor', 'total', 'preco', 'price', 'amount', 'valor total'],
-      'dailyRate': ['diaria', 'daily', 'rate', 'tarifa', 'diária'],
-      'channel': ['canal', 'channel', 'origem', 'source'],
-      'guestName': ['nome', 'name', 'guest', 'hospede', 'hóspede'],
-      'guestEmail': ['email', 'mail'],
-      'roomType': ['quarto', 'room', 'tipo', 'type'],
-      'nights': ['noites', 'nights', 'dias', 'days'],
-      'status': ['status', 'situacao', 'state'],
-      'situação': ['situacao', 'situação', 'status', 'state']
+      'id': ['id', 'booking', 'reserva', 'reservation'],
+      'data_checkin': ['checkin', 'entrada', 'check in', 'data entrada', 'd in'],
+      'data_checkout': ['checkout', 'saida', 'check out', 'data saida', 'd out'],
+      'valor_total': ['valor', 'total', 'preco', 'price', 'amount'],
+      'situacao': ['situacao', 'status', 'state', 'situação'],
+      'canal': ['canal', 'channel', 'origem', 'source'],
+      'hospede_nome': ['nome', 'name', 'guest', 'hospede', 'hóspede'],
+      'tipo_quarto': ['quarto', 'room', 'tipo', 'type'],
+      'noites': ['noites', 'nights', 'dias', 'days'],
+      'diaria_media': ['diaria', 'daily', 'rate', 'tarifa', 'média']
     };
 
     systemFields.forEach(field => {
@@ -302,7 +252,6 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
       errors.push(`Campos obrigatórios não mapeados: ${missingFields.map(f => f.label).join(', ')}`);
     }
 
-    // Validar dados
     let validRecords = 0;
     let invalidDates = 0;
     let invalidNumbers = 0;
@@ -326,11 +275,6 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
             if (value && isNaN(parseFloat(value.toString().replace(',', '.')))) {
               invalidNumbers++;
               rowValid = false;
-            }
-            break;
-          case 'email':
-            if (value && !/\S+@\S+\.\S+/.test(value)) {
-              warnings.push(`Linha ${index + 2}: Email inválido`);
             }
             break;
         }
@@ -367,35 +311,46 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
       const sheetData = getSelectedSheetData();
       if (!sheetData) throw new Error('Dados da planilha não encontrados');
 
-      console.log('Iniciando importação avançada...', {
+      console.log('Iniciando importação...', {
         propertyId,
         sheetName: selectedSheet,
         totalRecords: sheetData.data.length,
         mappings: fieldMappings
       });
 
-      // Transformar dados conforme mapeamento
-      const transformedData = sheetData.data.map(row => {
+      // Transformar dados para formato simples e compatível
+      const transformedData = sheetData.data.map((row, index) => {
         const transformedRow: any = {
-          id: generateUniqueId(),
-          propertyId,
-          importedAt: new Date().toISOString(),
-          fileName,
-          sheetName: selectedSheet,
-          originalRowIndex: row._rowIndex
+          id: `${propertyId}_${Date.now()}_${index}`,
+          propertyId
         };
 
         fieldMappings.forEach(mapping => {
           if (mapping.sourceColumn && mapping.targetField) {
             let value = row[mapping.sourceColumn];
 
-            // Aplicar transformações
-            if (mapping.transformation) {
-              value = applyTransformation(value, mapping.transformation, row);
+            // Converter tipos
+            switch (mapping.dataType) {
+              case 'number':
+                if (value !== null && value !== undefined && value !== '') {
+                  const numValue = parseFloat(value.toString().replace(',', '.'));
+                  value = isNaN(numValue) ? 0 : numValue;
+                } else {
+                  value = 0;
+                }
+                break;
+              case 'date':
+                if (value) {
+                  const date = new Date(value);
+                  value = isNaN(date.getTime()) ? null : date.toISOString().split('T')[0];
+                } else {
+                  value = null;
+                }
+                break;
+              default:
+                value = value ? value.toString() : '';
             }
 
-            // Converter tipos
-            value = convertDataType(value, mapping.dataType);
             transformedRow[mapping.targetField] = value;
           }
         });
@@ -405,46 +360,51 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
 
       console.log('Dados transformados (primeiros 3):', transformedData.slice(0, 3));
 
-      // Salvar dados no formato esperado pelo dashboard
-      const storageKey = `reservas_${propertyId}`;
-      const existingData = JSON.parse(localStorage.getItem(storageKey) || '{"data": []}');
+      // Salvar em chunks para evitar quota excedida
+      const chunkSize = 100; // Reduzir tamanho dos chunks
+      const chunks = [];
       
-      // Garantir que existingData tenha a estrutura correta
-      if (!existingData.data) {
-        existingData.data = [];
+      for (let i = 0; i < transformedData.length; i += chunkSize) {
+        chunks.push(transformedData.slice(i, i + chunkSize));
       }
-      
-      const updatedData = {
-        ...existingData,
-        data: [...existingData.data, ...transformedData],
-        lastUpdated: new Date().toISOString(),
-        source: 'advanced_import'
-      };
-      
-      localStorage.setItem(storageKey, JSON.stringify(updatedData));
-      console.log('Dados salvos em:', storageKey, { totalRecords: updatedData.data.length });
 
-      // Atualizar índice para compatibilidade com dashboard
-      const indexKey = `data_index_${propertyId}`;
-      const existingIndex = JSON.parse(localStorage.getItem(indexKey) || '{}');
-      existingIndex.reservas = {
-        lastUpdated: new Date().toISOString(),
-        records: updatedData.data.length,
-        storageKey: storageKey,
-        lastImport: {
-          fileName,
-          sheetName: selectedSheet,
-          recordsAdded: transformedData.length,
-          timestamp: new Date().toISOString(),
-          source: 'advanced_import'
+      // Limpar dados antigos para liberar espaço
+      const oldStorageKey = `reservas_${propertyId}`;
+      const newStorageKey = `forecast_data_${propertyId}`;
+      
+      // Remover dados antigos
+      localStorage.removeItem(oldStorageKey);
+      
+      // Salvar em chunks
+      let totalSaved = 0;
+      for (let i = 0; i < chunks.length; i++) {
+        const chunkKey = `${newStorageKey}_chunk_${i}`;
+        try {
+          localStorage.setItem(chunkKey, JSON.stringify(chunks[i]));
+          totalSaved += chunks[i].length;
+          console.log(`Chunk ${i + 1}/${chunks.length} salvo com ${chunks[i].length} registros`);
+        } catch (error) {
+          console.error(`Erro ao salvar chunk ${i}:`, error);
+          throw new Error(`Erro ao salvar dados - chunk ${i + 1}`);
         }
+      }
+
+      // Salvar índice dos chunks
+      const indexData = {
+        totalChunks: chunks.length,
+        totalRecords: totalSaved,
+        lastUpdated: new Date().toISOString(),
+        fileName,
+        sheetName: selectedSheet,
+        storagePrefix: newStorageKey
       };
-      localStorage.setItem(indexKey, JSON.stringify(existingIndex));
-      console.log('Índice atualizado:', existingIndex);
+
+      localStorage.setItem(`${newStorageKey}_index`, JSON.stringify(indexData));
+      console.log('Índice salvo:', indexData);
 
       toast({
         title: "Importação concluída!",
-        description: `${transformedData.length} registros importados com sucesso da aba "${selectedSheet}".`,
+        description: `${totalSaved} registros importados com sucesso da aba "${selectedSheet}".`,
       });
 
       resetImporter();
@@ -459,43 +419,6 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
     }
     
     setImporting(false);
-  };
-
-  const applyTransformation = (value: any, transformation: string, row: any): any => {
-    // Aplicar transformações básicas
-    switch (transformation) {
-      case 'adr_calculation':
-        const totalValue = parseFloat(row.totalValue || '0');
-        const nights = parseFloat(row.nights || '1');
-        return nights > 0 ? totalValue / nights : 0;
-      case 'uppercase':
-        return value ? value.toString().toUpperCase() : '';
-      case 'lowercase':
-        return value ? value.toString().toLowerCase() : '';
-      default:
-        return value;
-    }
-  };
-
-  const convertDataType = (value: any, type: string): any => {
-    if (!value || value === '') return null;
-
-    switch (type) {
-      case 'number':
-        const numValue = parseFloat(value.toString().replace(',', '.'));
-        return isNaN(numValue) ? null : numValue;
-      case 'date':
-        const dateValue = new Date(value);
-        return isNaN(dateValue.getTime()) ? null : dateValue.toISOString();
-      case 'email':
-        return value.toString().toLowerCase();
-      default:
-        return value.toString();
-    }
-  };
-
-  const generateUniqueId = () => {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
   };
 
   const resetImporter = () => {
@@ -683,11 +606,8 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Nenhuma</SelectItem>
-                        {commonTransformations.map(transform => (
-                          <SelectItem key={transform.id} value={transform.id}>
-                            {transform.label}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="uppercase">Maiúsculo</SelectItem>
+                        <SelectItem value="lowercase">Minúsculo</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
