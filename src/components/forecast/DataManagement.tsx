@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Upload, Download, Database, FileText, Calendar, CheckCircle, AlertCircle, Clock, Zap } from 'lucide-react';
+import { Upload, Download, Database, FileText, Calendar, CheckCircle, AlertCircle, Clock, Zap, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
 import AutoCSVImporter from './AutoCSVImporter';
+import AdvancedDataImporter from './AdvancedDataImporter';
 
 interface DataManagementProps {
   propertyId: string;
@@ -13,7 +14,7 @@ interface DataManagementProps {
 
 const DataManagement = ({ propertyId }: DataManagementProps) => {
   const { toast } = useToast();
-  const [activeMode, setActiveMode] = useState<'manual' | 'auto'>('auto');
+  const [activeMode, setActiveMode] = useState<'advanced' | 'auto' | 'manual'>('advanced');
   
   const [uploadHistory, setUploadHistory] = useState([
     {
@@ -514,6 +515,14 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
         <CardContent>
           <div className="flex gap-2 mb-4">
             <Button
+              onClick={() => setActiveMode('advanced')}
+              variant={activeMode === 'advanced' ? 'default' : 'outline'}
+              className={activeMode === 'advanced' ? 'bg-purple-600 hover:bg-purple-700' : 'border-slate-600 text-slate-300 hover:bg-slate-700'}
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Assistente Avançado
+            </Button>
+            <Button
               onClick={() => setActiveMode('auto')}
               variant={activeMode === 'auto' ? 'default' : 'outline'}
               className={activeMode === 'auto' ? 'bg-green-600 hover:bg-green-700' : 'border-slate-600 text-slate-300 hover:bg-slate-700'}
@@ -532,7 +541,11 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
           </div>
           
           <div className="text-sm text-slate-400">
-            {activeMode === 'auto' ? (
+            {activeMode === 'advanced' ? (
+              <>
+                <strong className="text-purple-400">Assistente Avançado:</strong> Importação completa com suporte a Excel multi-abas, mapeamento dinâmico de campos, transformações de dados e validação avançada.
+              </>
+            ) : activeMode === 'auto' ? (
               <>
                 <strong className="text-green-400">Importação Automática:</strong> Validação inteligente, mapeamento flexível de colunas e armazenamento seguro para arquivos CSV estruturados.
               </>
@@ -546,7 +559,9 @@ const DataManagement = ({ propertyId }: DataManagementProps) => {
       </Card>
 
       {/* Conteúdo baseado no modo selecionado */}
-      {activeMode === 'auto' ? (
+      {activeMode === 'advanced' ? (
+        <AdvancedDataImporter propertyId={propertyId} />
+      ) : activeMode === 'auto' ? (
         <AutoCSVImporter propertyId={propertyId} />
       ) : (
         <>
