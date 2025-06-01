@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -60,8 +59,8 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
     { key: 'roomNumber', label: 'Número do Quarto', type: 'string', required: false, category: 'Quarto' },
     { key: 'roomCategory', label: 'Categoria do Quarto', type: 'string', required: false, category: 'Quarto' },
     
-    // Valores Financeiros
-    { key: 'totalValue', label: 'Valor Total', type: 'number', required: true, category: 'Financeiro' },
+    // Valores Financeiros - campos compatíveis com o dashboard
+    { key: 'valor_total', label: 'Valor Total', type: 'number', required: true, category: 'Financeiro' },
     { key: 'dailyRate', label: 'Diária Média', type: 'number', required: false, category: 'Financeiro' },
     { key: 'adr', label: 'ADR (Average Daily Rate)', type: 'calculated', required: false, category: 'Financeiro' },
     { key: 'revenue', label: 'Receita', type: 'number', required: false, category: 'Financeiro' },
@@ -84,6 +83,9 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
     { key: 'bookingDate', label: 'Data da Reserva', type: 'date', required: false, category: 'Controle' },
     { key: 'confirmationDate', label: 'Data de Confirmação', type: 'date', required: false, category: 'Controle' },
     { key: 'cancellationDate', label: 'Data de Cancelamento', type: 'date', required: false, category: 'Controle' },
+    
+    // Status compatível com dashboard
+    { key: 'situação', label: 'Situação da Reserva', type: 'string', required: false, category: 'Controle' },
     
     // Campos Customizados
     { key: 'customField1', label: 'Campo Personalizado 1', type: 'string', required: false, category: 'Personalizado' },
@@ -221,16 +223,17 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
     // Mapeamento inteligente baseado em palavras-chave
     const keywordMappings: Record<string, string[]> = {
       'reservationId': ['id', 'booking', 'reserva', 'reservation'],
-      'checkInDate': ['checkin', 'entrada', 'd in', 'data entrada'],
-      'checkOutDate': ['checkout', 'saida', 'd out', 'data saida'],
-      'totalValue': ['valor', 'total', 'preco', 'price', 'amount'],
-      'dailyRate': ['diaria', 'daily', 'rate', 'tarifa'],
+      'checkInDate': ['checkin', 'entrada', 'd in', 'data entrada', 'check in'],
+      'checkOutDate': ['checkout', 'saida', 'd out', 'data saida', 'check out'],
+      'valor_total': ['valor', 'total', 'preco', 'price', 'amount', 'valor total'],
+      'dailyRate': ['diaria', 'daily', 'rate', 'tarifa', 'diária'],
       'channel': ['canal', 'channel', 'origem', 'source'],
-      'guestName': ['nome', 'name', 'guest', 'hospede'],
+      'guestName': ['nome', 'name', 'guest', 'hospede', 'hóspede'],
       'guestEmail': ['email', 'mail'],
       'roomType': ['quarto', 'room', 'tipo', 'type'],
       'nights': ['noites', 'nights', 'dias', 'days'],
-      'status': ['status', 'situacao', 'state']
+      'status': ['status', 'situacao', 'state'],
+      'situação': ['situacao', 'situação', 'status', 'state']
     };
 
     systemFields.forEach(field => {
@@ -364,6 +367,13 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
       const sheetData = getSelectedSheetData();
       if (!sheetData) throw new Error('Dados da planilha não encontrados');
 
+      console.log('Iniciando importação avançada...', {
+        propertyId,
+        sheetName: selectedSheet,
+        totalRecords: sheetData.data.length,
+        mappings: fieldMappings
+      });
+
       // Transformar dados conforme mapeamento
       const transformedData = sheetData.data.map(row => {
         const transformedRow: any = {
@@ -393,27 +403,44 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
         return transformedRow;
       });
 
-      // Salvar dados
-      const storageKey = `advanced_data_${propertyId}`;
-      const existingData = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      const updatedData = [...existingData, ...transformedData];
+      console.log('Dados transformados (primeiros 3):', transformedData.slice(0, 3));
+
+      // Salvar dados no formato esperado pelo dashboard
+      const storageKey = `reservas_${propertyId}`;
+      const existingData = JSON.parse(localStorage.getItem(storageKey) || '{"data": []}');
+      
+      // Garantir que existingData tenha a estrutura correta
+      if (!existingData.data) {
+        existingData.data = [];
+      }
+      
+      const updatedData = {
+        ...existingData,
+        data: [...existingData.data, ...transformedData],
+        lastUpdated: new Date().toISOString(),
+        source: 'advanced_import'
+      };
       
       localStorage.setItem(storageKey, JSON.stringify(updatedData));
+      console.log('Dados salvos em:', storageKey, { totalRecords: updatedData.data.length });
 
-      // Atualizar índice
+      // Atualizar índice para compatibilidade com dashboard
       const indexKey = `data_index_${propertyId}`;
       const existingIndex = JSON.parse(localStorage.getItem(indexKey) || '{}');
-      existingIndex.advanced_import = {
+      existingIndex.reservas = {
         lastUpdated: new Date().toISOString(),
-        records: updatedData.length,
+        records: updatedData.data.length,
+        storageKey: storageKey,
         lastImport: {
           fileName,
           sheetName: selectedSheet,
           recordsAdded: transformedData.length,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          source: 'advanced_import'
         }
       };
       localStorage.setItem(indexKey, JSON.stringify(existingIndex));
+      console.log('Índice atualizado:', existingIndex);
 
       toast({
         title: "Importação concluída!",

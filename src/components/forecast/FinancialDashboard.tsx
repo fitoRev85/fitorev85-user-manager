@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -56,8 +55,11 @@ const FinancialDashboard = ({ propertyId }: FinancialDashboardProps) => {
 
   const carregarDadosFinanceiros = () => {
     try {
+      console.log('Carregando dados financeiros para propriedade:', propertyId);
+      
       const indexKey = `data_index_${propertyId}`;
       const index = JSON.parse(localStorage.getItem(indexKey) || '{}');
+      console.log('Índice de dados:', index);
       
       let dadosConsolidados: any[] = [];
       let kpis = {
@@ -69,9 +71,37 @@ const FinancialDashboard = ({ propertyId }: FinancialDashboardProps) => {
         ocupacaoMedia: 0
       };
 
-      // Carregar dados de reservas para receita
-      if (index.reservas) {
+      // Tentativa 1: Carregar do formato de importação avançada (novo)
+      const reservasKey = `reservas_${propertyId}`;
+      const reservasData = JSON.parse(localStorage.getItem(reservasKey) || '{}');
+      console.log('Dados de reservas direto:', reservasData);
+
+      if (reservasData.data && Array.isArray(reservasData.data)) {
+        console.log(`Encontrados ${reservasData.data.length} registros de reservas (formato novo)`);
+        
+        reservasData.data.forEach((reserva: any) => {
+          const valor = parseFloat(reserva.valor_total || 0);
+          const situacao = (reserva.situação || reserva.status || '').toLowerCase();
+          
+          console.log('Processando reserva:', { 
+            id: reserva.id, 
+            valor, 
+            situacao,
+            campos: Object.keys(reserva)
+          });
+          
+          if (!situacao.includes('cancelada') && !situacao.includes('cancelled') && valor > 0) {
+            kpis.receitaTotal += valor;
+          }
+        });
+      }
+
+      // Tentativa 2: Carregar dados do índice (formato antigo)
+      if (kpis.receitaTotal === 0 && index.reservas) {
+        console.log('Tentando carregar do formato antigo...');
         const dadosReservas = JSON.parse(localStorage.getItem(index.reservas.storageKey) || '{}');
+        console.log('Dados do índice antigo:', dadosReservas);
+        
         if (dadosReservas.data) {
           dadosReservas.data.forEach((reserva: any) => {
             const valor = parseFloat(reserva.valor_total || 0);
@@ -82,7 +112,7 @@ const FinancialDashboard = ({ propertyId }: FinancialDashboardProps) => {
             }
           });
           
-          console.log(`Receita total das reservas: R$ ${kpis.receitaTotal.toFixed(2)}`);
+          console.log(`Receita total das reservas (formato antigo): R$ ${kpis.receitaTotal.toFixed(2)}`);
         }
       }
 
@@ -106,6 +136,8 @@ const FinancialDashboard = ({ propertyId }: FinancialDashboardProps) => {
       kpis.margemLucro = kpis.receitaTotal > 0 ? (kpis.lucroLiquido / kpis.receitaTotal) * 100 : 0;
       kpis.receitaMediaDiaria = kpis.receitaTotal / 30; // Assumindo um mês
       kpis.ocupacaoMedia = currentProperty?.occupancy || 75;
+
+      console.log('KPIs finais calculados:', kpis);
 
       // Gerar dados mensais para gráficos
       const mesesData = [
