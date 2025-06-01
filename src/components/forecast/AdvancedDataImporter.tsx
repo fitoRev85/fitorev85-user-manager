@@ -148,13 +148,15 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
       }
 
       const headers = (jsonData[0] as string[]) || [];
+      // Filter out empty headers
+      const validHeaders = headers.filter(header => header && header.toString().trim() !== '');
       const rows = jsonData.slice(1) as any[][];
       
       const formattedData = rows
         .filter(row => row.some(cell => cell !== undefined && cell !== ''))
         .map((row, index) => {
           const rowData: any = { _rowIndex: index + 2 };
-          headers.forEach((header, i) => {
+          validHeaders.forEach((header, i) => {
             rowData[header] = row[i] || '';
           });
           return rowData;
@@ -162,9 +164,9 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
 
       return {
         name: sheetName,
-        headers,
+        headers: validHeaders,
         data: formattedData,
-        preview: formattedData.slice(0, 5) // Apenas 5 primeiras linhas para preview
+        preview: formattedData.slice(0, 5)
       };
     });
 
@@ -187,7 +189,10 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
       throw new Error('Arquivo CSV vazio');
     }
 
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const headers = lines[0].split(',')
+      .map(h => h.trim().replace(/"/g, ''))
+      .filter(h => h && h.trim() !== ''); // Filter out empty headers
+    
     const rows = lines.slice(1).map(line => {
       const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
       const row: any = {};
@@ -595,7 +600,8 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
                         <SelectValue placeholder="Selecione..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {getSelectedSheetData()?.headers.map(header => (
+                        <SelectItem value="none">Nenhuma</SelectItem>
+                        {getSelectedSheetData()?.headers.filter(header => header && header.trim() !== '').map(header => (
                           <SelectItem key={header} value={header}>{header}</SelectItem>
                         ))}
                       </SelectContent>
@@ -609,6 +615,7 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
                         <SelectValue placeholder="Selecione..." />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="none">Nenhum</SelectItem>
                         {Object.entries(groupedSystemFields).map(([category, fields]) => (
                           <div key={category}>
                             <div className="px-2 py-1 text-xs font-medium text-slate-400 bg-slate-800">
@@ -643,12 +650,12 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
 
                   <div>
                     <label className="block text-xs text-slate-400 mb-1">Transformação</label>
-                    <Select value={mapping.transformation || ''} onValueChange={(value) => updateFieldMapping(index, 'transformation', value)}>
+                    <Select value={mapping.transformation || 'none'} onValueChange={(value) => updateFieldMapping(index, 'transformation', value === 'none' ? undefined : value)}>
                       <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
                         <SelectValue placeholder="Nenhuma" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Nenhuma</SelectItem>
+                        <SelectItem value="none">Nenhuma</SelectItem>
                         {commonTransformations.map(transform => (
                           <SelectItem key={transform.id} value={transform.id}>
                             {transform.label}
