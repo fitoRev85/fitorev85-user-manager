@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -56,6 +55,62 @@ const AutoCSVImporter = ({ propertyId }: AutoCSVImporterProps) => {
     { key: 'roomNumber', label: 'Número do Quarto', type: 'string', required: false },
     { key: 'specialRequests', label: 'Solicitações Especiais', type: 'string', required: false }
   ];
+
+  // Função auxiliar para validar e formatar datas
+  const parseDate = (dateValue: any): string | null => {
+    if (!dateValue || dateValue === '') return null;
+    
+    try {
+      // Tenta diferentes formatos de data
+      let date: Date | null = null;
+      
+      if (typeof dateValue === 'string') {
+        // Remove espaços extras
+        const cleanValue = dateValue.trim();
+        
+        // Tenta formatos comuns
+        if (cleanValue.includes('/')) {
+          // DD/MM/YYYY ou MM/DD/YYYY
+          const parts = cleanValue.split('/');
+          if (parts.length === 3) {
+            // Assume DD/MM/YYYY primeiro
+            const day = parseInt(parts[0]);
+            const month = parseInt(parts[1]);
+            const year = parseInt(parts[2]);
+            
+            if (day <= 12 && month > 12) {
+              // Provavelmente MM/DD/YYYY
+              date = new Date(year, day - 1, month);
+            } else {
+              // Provavelmente DD/MM/YYYY
+              date = new Date(year, month - 1, day);
+            }
+          }
+        } else if (cleanValue.includes('-')) {
+          // YYYY-MM-DD ou DD-MM-YYYY
+          date = new Date(cleanValue);
+        } else {
+          // Tenta parsing direto
+          date = new Date(dateValue);
+        }
+      } else if (typeof dateValue === 'number') {
+        // Timestamp
+        date = new Date(dateValue);
+      } else {
+        date = new Date(dateValue);
+      }
+      
+      // Verifica se a data é válida
+      if (date && !isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+      
+      return null;
+    } catch (error) {
+      console.log('Erro ao processar data:', dateValue, error);
+      return null;
+    }
+  };
 
   const parseCSVFile = async (file: File): Promise<{ headers: string[], data: any[] }> => {
     return new Promise((resolve, reject) => {
@@ -171,9 +226,9 @@ const AutoCSVImporter = ({ propertyId }: AutoCSVImporterProps) => {
         warnings.push(`Linha ${index + 2}: Valor total inválido`);
       }
 
-      // Validar datas
+      // Validar datas com nova função
       const checkIn = row.checkInDateTime || row.checkin || row.data_checkin || '';
-      if (checkIn && isNaN(Date.parse(checkIn))) {
+      if (checkIn && !parseDate(checkIn)) {
         warnings.push(`Linha ${index + 2}: Data de check-in inválida`);
       }
 
@@ -283,13 +338,18 @@ const AutoCSVImporter = ({ propertyId }: AutoCSVImporterProps) => {
             // Transformar conforme tipo
             switch (mapping.type) {
               case 'number':
-                value = value ? parseFloat(value.toString().replace(',', '.')) : null;
+                if (value !== null && value !== undefined && value !== '') {
+                  const numValue = parseFloat(value.toString().replace(',', '.'));
+                  value = isNaN(numValue) ? null : numValue;
+                } else {
+                  value = null;
+                }
                 break;
               case 'date':
-                value = value ? new Date(value).toISOString() : null;
+                value = parseDate(value);
                 break;
               case 'email':
-                value = value ? value.toLowerCase() : '';
+                value = value ? value.toString().toLowerCase() : '';
                 break;
               default:
                 value = value ? value.toString() : '';
@@ -332,6 +392,7 @@ const AutoCSVImporter = ({ propertyId }: AutoCSVImporterProps) => {
       resetImporter();
       
     } catch (error) {
+      console.error('Erro na importação:', error);
       toast({
         title: "Erro na importação",
         description: `Erro ao salvar dados: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
