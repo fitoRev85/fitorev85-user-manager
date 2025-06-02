@@ -362,12 +362,36 @@ const AutoCSVImporter = ({ propertyId }: AutoCSVImporterProps) => {
         return transformedRow;
       });
 
-      // Salvar no localStorage (simulando banco de dados)
-      const storageKey = `reservations_data_${propertyId}`;
-      const existingData = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      // Salvar no localStorage usando múltiplas chaves para compatibilidade
+      const keys = [
+        `reservations_data_${propertyId}`,
+        `csv_data_${propertyId}`,
+        `import_data_${propertyId}`
+      ];
+
+      // Carregar dados existentes
+      let existingData: any[] = [];
+      for (const key of keys) {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) {
+              existingData = parsed;
+              break;
+            }
+          } catch (error) {
+            console.warn(`Erro ao carregar dados existentes de ${key}:`, error);
+          }
+        }
+      }
+
       const updatedData = [...existingData, ...transformedData];
       
-      localStorage.setItem(storageKey, JSON.stringify(updatedData));
+      // Salvar em todas as chaves para garantir compatibilidade
+      keys.forEach(key => {
+        localStorage.setItem(key, JSON.stringify(updatedData));
+      });
 
       // Atualizar índice geral
       const indexKey = `data_index_${propertyId}`;
@@ -382,6 +406,15 @@ const AutoCSVImporter = ({ propertyId }: AutoCSVImporterProps) => {
         }
       };
       localStorage.setItem(indexKey, JSON.stringify(existingIndex));
+
+      // Disparar evento customizado para notificar outros componentes
+      window.dispatchEvent(new CustomEvent('dataImported', {
+        detail: {
+          propertyId,
+          recordsAdded: transformedData.length,
+          totalRecords: updatedData.length
+        }
+      }));
 
       toast({
         title: "Importação concluída!",
