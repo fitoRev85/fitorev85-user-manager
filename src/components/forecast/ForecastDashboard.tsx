@@ -18,6 +18,7 @@ import {
 import PeriodSelector from './PeriodSelector';
 import AlertsPanel from './AlertsPanel';
 import ComparativeAnalysis from './ComparativeAnalysis';
+import OccupancyChart from './OccupancyChart';
 
 interface ForecastDashboardProps {
   propertyId: string;
@@ -379,6 +380,13 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
           />
         </div>
       </div>
+
+      {/* Novo Gráfico de Ocupação */}
+      <OccupancyChart 
+        propertyId={propertyId}
+        selectedYear={selectedYear}
+        selectedMonth={selectedMonth}
+      />
 
       {/* Gráficos e Análise Comparativa */}
       {reservas.length > 0 && (
