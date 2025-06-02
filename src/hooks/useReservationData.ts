@@ -80,8 +80,22 @@ export function useReservationData(propertyId: string): UseReservationDataReturn
         }
       }
 
+      // Filtrar dados com datas válidas e normalizar
+      const validData = allData.filter(item => {
+        const hasValidDate = item.data_checkin && 
+          item.data_checkin !== '1970-01-01' && 
+          item.data_checkin !== 'Invalid Date' &&
+          new Date(item.data_checkin).getFullYear() > 1970;
+        
+        if (!hasValidDate) {
+          console.warn('❌ Registro com data inválida ignorado:', item);
+        }
+        
+        return hasValidDate;
+      });
+
       // Normalizar dados
-      const normalizedData = allData.map((item, index) => ({
+      const normalizedData = validData.map((item, index) => ({
         id: item.id || `${propertyId}_${index}`,
         data_checkin: item.data_checkin || '',
         data_checkout: item.data_checkout || '',
@@ -101,11 +115,21 @@ export function useReservationData(propertyId: string): UseReservationDataReturn
         setLastUpdate(new Date().toISOString());
       }
 
-      console.log('📈 Dados finais carregados:', {
+      console.log('📈 Dados finais processados:', {
         total: normalizedData.length,
+        comDatasValidas: normalizedData.filter(r => new Date(r.data_checkin).getFullYear() > 1970).length,
         amostra: normalizedData.slice(0, 3),
         propriedade: propertyId
       });
+
+      // Log estatísticas por ano
+      const anoStats = normalizedData.reduce((acc, r) => {
+        const ano = new Date(r.data_checkin).getFullYear();
+        acc[ano] = (acc[ano] || 0) + 1;
+        return acc;
+      }, {} as Record<number, number>);
+      
+      console.log('📊 Distribuição por ano:', anoStats);
 
     } catch (error) {
       console.error('❌ Erro ao carregar dados:', error);

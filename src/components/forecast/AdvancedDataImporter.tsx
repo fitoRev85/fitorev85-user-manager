@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,9 +39,8 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
   const [importing, setImporting] = useState(false);
   const [validationResults, setValidationResults] = useState<any>(null);
 
-  // Campos do sistema simplificados para compatibilidade com ForecastDashboard
+  // Campos do sistema
   const systemFields = [
-    // Campos principais para dashboard
     { key: 'id', label: 'ID da Reserva', type: 'string', required: true, category: 'Reserva' },
     { key: 'data_checkin', label: 'Data Check-in', type: 'date', required: true, category: 'Reserva' },
     { key: 'data_checkout', label: 'Data Check-out', type: 'date', required: true, category: 'Reserva' },
@@ -54,6 +52,33 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
     { key: 'noites', label: 'Número de Noites', type: 'number', required: false, category: 'Reserva' },
     { key: 'diaria_media', label: 'Diária Média', type: 'number', required: false, category: 'Financeiro' }
   ];
+
+  // Função para converter data serial do Excel para data válida
+  const convertExcelDate = (value: any): string | null => {
+    if (!value) return null;
+    
+    // Se já é uma string de data válida
+    if (typeof value === 'string') {
+      const date = new Date(value);
+      if (!isNaN(date.getTime()) && date.getFullYear() > 1900) {
+        return date.toISOString().split('T')[0];
+      }
+    }
+    
+    // Se é um número (data serial do Excel)
+    if (typeof value === 'number' && value > 0) {
+      // Excel conta dias desde 1900-01-01 (com bug do ano 1900)
+      const excelEpoch = new Date(1900, 0, 1);
+      const date = new Date(excelEpoch.getTime() + (value - 1) * 24 * 60 * 60 * 1000);
+      
+      if (!isNaN(date.getTime()) && date.getFullYear() > 1900) {
+        return date.toISOString().split('T')[0];
+      }
+    }
+    
+    console.warn('Não foi possível converter data:', value);
+    return null;
+  };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -91,12 +116,12 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
 
   const processExcelFile = async (file: File) => {
     const data = await file.arrayBuffer();
-    const wb = XLSX.read(data);
+    const wb = XLSX.read(data, { cellDates: true });
     setWorkbook(wb);
 
     const sheetData: SheetData[] = wb.SheetNames.map(sheetName => {
       const ws = wb.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
       
       if (jsonData.length === 0) {
         return { name: sheetName, headers: [], data: [], preview: [] };
@@ -115,6 +140,12 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
           });
           return rowData;
         });
+
+      console.log(`📊 Planilha ${sheetName}:`, {
+        headers: validHeaders,
+        totalRows: formattedData.length,
+        amostra: formattedData.slice(0, 2)
+      });
 
       return {
         name: sheetName,
@@ -172,18 +203,18 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
   const generateSuggestedMappings = (headers: string[]) => {
     const mappings: FieldMapping[] = [];
 
-    // Mapeamento inteligente
+    // Mapeamento inteligente melhorado
     const keywordMappings: Record<string, string[]> = {
-      'id': ['id', 'booking', 'reserva', 'reservation'],
-      'data_checkin': ['checkin', 'entrada', 'check in', 'data entrada', 'd in'],
-      'data_checkout': ['checkout', 'saida', 'check out', 'data saida', 'd out'],
-      'valor_total': ['valor', 'total', 'preco', 'price', 'amount'],
+      'id': ['id', 'booking', 'reserva', 'reservation', 'número', 'numero', 'nº'],
+      'data_checkin': ['checkin', 'entrada', 'check in', 'data entrada', 'd in', 'in'],
+      'data_checkout': ['checkout', 'saida', 'check out', 'data saida', 'd out', 'out'],
+      'valor_total': ['valor', 'total', 'preco', 'price', 'amount', 'diarias'],
       'situacao': ['situacao', 'status', 'state', 'situação'],
       'canal': ['canal', 'channel', 'origem', 'source'],
       'hospede_nome': ['nome', 'name', 'guest', 'hospede', 'hóspede'],
       'tipo_quarto': ['quarto', 'room', 'tipo', 'type'],
-      'noites': ['noites', 'nights', 'dias', 'days'],
-      'diaria_media': ['diaria', 'daily', 'rate', 'tarifa', 'média']
+      'noites': ['noites', 'nights', 'dias', 'days', 'estadia'],
+      'diaria_media': ['diaria', 'daily', 'rate', 'tarifa', 'média', 'media']
     };
 
     systemFields.forEach(field => {
@@ -206,6 +237,7 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
       }
     });
 
+    console.log('🎯 Mapeamentos sugeridos:', mappings);
     setFieldMappings(mappings);
   };
 
@@ -266,9 +298,12 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
         
         switch (mapping.dataType) {
           case 'date':
-            if (value && isNaN(Date.parse(value))) {
-              invalidDates++;
-              rowValid = false;
+            if (value) {
+              const convertedDate = convertExcelDate(value);
+              if (!convertedDate) {
+                invalidDates++;
+                rowValid = false;
+              }
             }
             break;
           case 'number':
@@ -311,14 +346,14 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
       const sheetData = getSelectedSheetData();
       if (!sheetData) throw new Error('Dados da planilha não encontrados');
 
-      console.log('Iniciando importação...', {
+      console.log('🚀 Iniciando importação...', {
         propertyId,
         sheetName: selectedSheet,
         totalRecords: sheetData.data.length,
         mappings: fieldMappings
       });
 
-      // Transformar dados para formato simples e compatível
+      // Transformar dados com conversão correta de datas
       const transformedData = sheetData.data.map((row, index) => {
         const transformedRow: any = {
           id: `${propertyId}_${Date.now()}_${index}`,
@@ -329,7 +364,7 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
           if (mapping.sourceColumn && mapping.targetField) {
             let value = row[mapping.sourceColumn];
 
-            // Converter tipos
+            // Converter tipos com tratamento especial para datas
             switch (mapping.dataType) {
               case 'number':
                 if (value !== null && value !== undefined && value !== '') {
@@ -341,8 +376,8 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
                 break;
               case 'date':
                 if (value) {
-                  const date = new Date(value);
-                  value = isNaN(date.getTime()) ? null : date.toISOString().split('T')[0];
+                  const convertedDate = convertExcelDate(value);
+                  value = convertedDate;
                 } else {
                   value = null;
                 }
@@ -356,40 +391,47 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
         });
 
         return transformedRow;
+      }).filter(row => row.data_checkin); // Filtrar apenas registros com data válida
+
+      console.log('✅ Dados transformados:', {
+        total: transformedData.length,
+        amostra: transformedData.slice(0, 3)
       });
 
-      console.log('Dados transformados (primeiros 3):', transformedData.slice(0, 3));
+      // Limpar dados antigos
+      const oldKeys = [
+        `reservas_${propertyId}`,
+        `forecast_data_${propertyId}`,
+        `reservations_data_${propertyId}`
+      ];
+      
+      oldKeys.forEach(key => localStorage.removeItem(key));
 
-      // Salvar em chunks para evitar quota excedida
-      const chunkSize = 100; // Reduzir tamanho dos chunks
+      // Salvar em chunks
+      const chunkSize = 100;
       const chunks = [];
       
       for (let i = 0; i < transformedData.length; i += chunkSize) {
         chunks.push(transformedData.slice(i, i + chunkSize));
       }
 
-      // Limpar dados antigos para liberar espaço
-      const oldStorageKey = `reservas_${propertyId}`;
       const newStorageKey = `forecast_data_${propertyId}`;
       
-      // Remover dados antigos
-      localStorage.removeItem(oldStorageKey);
-      
-      // Salvar em chunks
+      // Salvar chunks
       let totalSaved = 0;
       for (let i = 0; i < chunks.length; i++) {
         const chunkKey = `${newStorageKey}_chunk_${i}`;
         try {
           localStorage.setItem(chunkKey, JSON.stringify(chunks[i]));
           totalSaved += chunks[i].length;
-          console.log(`Chunk ${i + 1}/${chunks.length} salvo com ${chunks[i].length} registros`);
+          console.log(`📦 Chunk ${i + 1}/${chunks.length} salvo com ${chunks[i].length} registros`);
         } catch (error) {
-          console.error(`Erro ao salvar chunk ${i}:`, error);
+          console.error(`❌ Erro ao salvar chunk ${i}:`, error);
           throw new Error(`Erro ao salvar dados - chunk ${i + 1}`);
         }
       }
 
-      // Salvar índice dos chunks
+      // Salvar índice
       const indexData = {
         totalChunks: chunks.length,
         totalRecords: totalSaved,
@@ -400,7 +442,12 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
       };
 
       localStorage.setItem(`${newStorageKey}_index`, JSON.stringify(indexData));
-      console.log('Índice salvo:', indexData);
+      
+      console.log('🎉 Importação concluída:', {
+        totalSaved,
+        chunks: chunks.length,
+        indexData
+      });
 
       toast({
         title: "Importação concluída!",
@@ -409,8 +456,13 @@ const AdvancedDataImporter = ({ propertyId }: AdvancedDataImporterProps) => {
 
       resetImporter();
       
+      // Forçar recarregamento da página para atualizar os dados
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+      
     } catch (error) {
-      console.error('Erro na importação:', error);
+      console.error('❌ Erro na importação:', error);
       toast({
         title: "Erro na importação",
         description: error instanceof Error ? error.message : 'Erro desconhecido',
