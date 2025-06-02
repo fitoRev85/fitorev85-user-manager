@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -7,13 +6,18 @@ import { Button } from '@/components/ui/button';
 import { 
   TrendingUp, TrendingDown, Users, DollarSign, Calendar, 
   Percent, BarChart3, LineChart, PieChart, RefreshCw,
-  AlertTriangle, CheckCircle, Clock, Target
+  AlertTriangle, CheckCircle, Clock, Target, TrendingUp as TrendingUpIcon
 } from 'lucide-react';
 import { 
   LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, 
   Tooltip, Legend, ResponsiveContainer, BarChart as RechartsBarChart, 
   Bar, PieChart as RechartsPieChart, Cell, Area, AreaChart, Pie
 } from 'recharts';
+
+// Importar os novos componentes
+import PeriodSelector from './PeriodSelector';
+import AlertsPanel from './AlertsPanel';
+import ComparativeAnalysis from './ComparativeAnalysis';
 
 interface ForecastDashboardProps {
   propertyId: string;
@@ -36,6 +40,11 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
   const [reservas, setReservas] = useState<ReservaData[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<string>('');
+  
+  // Estados para o novo sistema de período
+  const [selectedPeriod, setSelectedPeriod] = useState('month');
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
 
   const loadData = () => {
     setLoading(true);
@@ -104,9 +113,30 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
     loadData();
   }, [propertyId]);
 
-  // Calcular métricas
+  // Filtrar dados baseado no período selecionado
+  const filteredData = React.useMemo(() => {
+    if (reservas.length === 0) return [];
+
+    return reservas.filter(reserva => {
+      if (!reserva.data_checkin) return false;
+      
+      const reservaDate = new Date(reserva.data_checkin);
+      const reservaYear = reservaDate.getFullYear();
+      const reservaMonth = reservaDate.getMonth() + 1;
+
+      if (selectedPeriod === 'month') {
+        return reservaYear === selectedYear && reservaMonth === selectedMonth;
+      } else if (selectedPeriod === 'year') {
+        return reservaYear === selectedYear;
+      }
+      
+      return true; // Para outros períodos, retornar todos os dados por enquanto
+    });
+  }, [reservas, selectedPeriod, selectedYear, selectedMonth]);
+
+  // Calcular métricas baseadas nos dados filtrados
   const metrics = React.useMemo(() => {
-    if (reservas.length === 0) {
+    if (filteredData.length === 0) {
       return {
         totalReservas: 0,
         receitaTotal: 0,
@@ -116,7 +146,7 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
       };
     }
 
-    const reservasConfirmadas = reservas.filter(r => 
+    const reservasConfirmadas = filteredData.filter(r => 
       r.situacao && !['cancelada', 'canceled', 'cancelled'].includes(r.situacao.toLowerCase())
     );
 
@@ -137,16 +167,30 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
       ocupacao,
       diasForecast: dates.length
     };
-  }, [reservas]);
+  }, [filteredData]);
+
+  // Gerar dados comparativos para análise
+  const comparativeData = React.useMemo(() => {
+    // Simular dados comparativos (em uma implementação real, estes viriam do banco de dados)
+    const periods = ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4'];
+    
+    return periods.map(period => ({
+      period,
+      atual: metrics.receitaTotal / 4 + Math.random() * 10000,
+      anoAnterior: (metrics.receitaTotal / 4) * 0.85 + Math.random() * 8000,
+      mesAnterior: (metrics.receitaTotal / 4) * 0.92 + Math.random() * 9000,
+      mlForecast: (metrics.receitaTotal / 4) * 1.05 + Math.random() * 11000
+    }));
+  }, [metrics]);
 
   // Dados para gráficos
   const chartData = React.useMemo(() => {
-    if (reservas.length === 0) return [];
+    if (filteredData.length === 0) return [];
 
     // Agrupar por data
     const dataMap = new Map();
     
-    reservas.forEach(reserva => {
+    filteredData.forEach(reserva => {
       if (!reserva.data_checkin) return;
       
       const date = reserva.data_checkin.split('T')[0]; // Formato YYYY-MM-DD
@@ -167,15 +211,15 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
     });
 
     return Array.from(dataMap.values()).sort((a, b) => a.date.localeCompare(b.date));
-  }, [reservas]);
+  }, [filteredData]);
 
   // Dados por canal
   const canalData = React.useMemo(() => {
-    if (reservas.length === 0) return [];
+    if (filteredData.length === 0) return [];
 
     const canalMap = new Map();
     
-    reservas.forEach(reserva => {
+    filteredData.forEach(reserva => {
       const canal = reserva.canal || 'Direto';
       
       if (!canalMap.has(canal)) {
@@ -192,7 +236,7 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
     });
 
     return Array.from(canalMap.values());
-  }, [reservas]);
+  }, [filteredData]);
 
   const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1'];
 
@@ -222,6 +266,16 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
         </Button>
       </div>
 
+      {/* Seletor de Período */}
+      <PeriodSelector
+        selectedPeriod={selectedPeriod}
+        selectedYear={selectedYear}
+        selectedMonth={selectedMonth}
+        onPeriodChange={setSelectedPeriod}
+        onYearChange={setSelectedYear}
+        onMonthChange={setSelectedMonth}
+      />
+
       {/* Status dos Dados */}
       <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
         <CardContent className="p-4">
@@ -230,7 +284,7 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
               <>
                 <CheckCircle className="w-5 h-5 text-green-400" />
                 <span className="text-green-400 font-medium">
-                  {reservas.length} registros carregados
+                  {filteredData.length} registros no período selecionado ({reservas.length} total)
                 </span>
               </>
             ) : (
@@ -245,87 +299,95 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
         </CardContent>
       </Card>
 
-      {/* Métricas Principais */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500/20 rounded-lg">
-                <Calendar className="w-5 h-5 text-blue-400" />
-              </div>
-              <div>
-                <p className="text-slate-400 text-sm">Reservas</p>
-                <p className="text-white text-xl font-bold">{metrics.totalReservas}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Grid com Métricas e Alertas */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Métricas Principais */}
+        <div className="lg:col-span-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-500/20 rounded-lg">
+                    <Calendar className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-slate-400 text-sm">Reservas</p>
+                    <p className="text-white text-xl font-bold">{metrics.totalReservas}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-500/20 rounded-lg">
-                <DollarSign className="w-5 h-5 text-green-400" />
-              </div>
-              <div>
-                <p className="text-slate-400 text-sm">Receita Total</p>
-                <p className="text-white text-xl font-bold">
-                  R$ {metrics.receitaTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-500/20 rounded-lg">
+                    <DollarSign className="w-5 h-5 text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-slate-400 text-sm">Receita Total</p>
+                    <p className="text-white text-xl font-bold">
+                      R$ {metrics.receitaTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-500/20 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-purple-400" />
-              </div>
-              <div>
-                <p className="text-slate-400 text-sm">ADR</p>
-                <p className="text-white text-xl font-bold">
-                  R$ {metrics.adr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-500/20 rounded-lg">
+                    <TrendingUp className="w-5 h-5 text-purple-400" />
+                  </div>
+                  <div>
+                    <p className="text-slate-400 text-sm">ADR</p>
+                    <p className="text-white text-xl font-bold">
+                      R$ {metrics.adr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-cyan-500/20 rounded-lg">
-                <Percent className="w-5 h-5 text-cyan-400" />
-              </div>
-              <div>
-                <p className="text-slate-400 text-sm">Ocupação</p>
-                <p className="text-white text-xl font-bold">{metrics.ocupacao.toFixed(1)}%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-cyan-500/20 rounded-lg">
+                    <Percent className="w-5 h-5 text-cyan-400" />
+                  </div>
+                  <div>
+                    <p className="text-slate-400 text-sm">Ocupação</p>
+                    <p className="text-white text-xl font-bold">{metrics.ocupacao.toFixed(1)}%</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
-        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-500/20 rounded-lg">
-                <Clock className="w-5 h-5 text-orange-400" />
-              </div>
-              <div>
-                <p className="text-slate-400 text-sm">Período</p>
-                <p className="text-white text-xl font-bold">{metrics.diasForecast} dias</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Painel de Alertas */}
+        <div>
+          <AlertsPanel 
+            propertyId={propertyId}
+            currentMetrics={{
+              adr: metrics.adr,
+              occupancy: metrics.ocupacao,
+              revenue: metrics.receitaTotal,
+              forecast: metrics.receitaTotal * 1.1
+            }}
+          />
+        </div>
       </div>
 
-      {/* Gráficos */}
+      {/* Gráficos e Análise Comparativa */}
       {reservas.length > 0 && (
-        <Tabs defaultValue="timeline" className="space-y-4">
+        <Tabs defaultValue="comparative" className="space-y-4">
           <TabsList className="bg-slate-800/50 border border-slate-700/50">
+            <TabsTrigger value="comparative" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
+              <TrendingUpIcon className="w-4 h-4 mr-2" />
+              Análise Comparativa
+            </TabsTrigger>
             <TabsTrigger value="timeline" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
               <LineChart className="w-4 h-4 mr-2" />
               Timeline
@@ -334,11 +396,15 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
               <PieChart className="w-4 h-4 mr-2" />
               Canais
             </TabsTrigger>
-            <TabsTrigger value="comparativo" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Comparativo
-            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="comparative" className="space-y-4">
+            <ComparativeAnalysis 
+              data={comparativeData}
+              title="Receita"
+              type="revenue"
+            />
+          </TabsContent>
 
           <TabsContent value="timeline" className="space-y-4">
             <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
@@ -400,33 +466,6 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
                     />
                     <Legend />
                   </RechartsPieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="comparativo" className="space-y-4">
-            <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-              <CardHeader>
-                <CardTitle className="text-white">ADR vs Reservas</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <RechartsBarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis dataKey="date" stroke="#9CA3AF" />
-                    <YAxis stroke="#9CA3AF" />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: '#1F2937', 
-                        border: '1px solid #374151',
-                        borderRadius: '8px'
-                      }}
-                    />
-                    <Legend />
-                    <Bar dataKey="adr" fill="#8884d8" name="ADR (R$)" />
-                    <Bar dataKey="reservas" fill="#82ca9d" name="Reservas" />
-                  </RechartsBarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
