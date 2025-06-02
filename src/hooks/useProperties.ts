@@ -98,6 +98,13 @@ export function useProperties() {
     return newProperty;
   };
 
+  const updateProperty = (updatedProperty: Property) => {
+    const updatedProperties = properties.map(p => 
+      p.id === updatedProperty.id ? updatedProperty : p
+    );
+    saveProperties(updatedProperties);
+  };
+
   const deleteProperty = (propertyId: string) => {
     const updatedProperties = properties.filter(p => p.id !== propertyId);
     saveProperties(updatedProperties);
@@ -110,6 +117,7 @@ export function useProperties() {
   return {
     properties,
     addProperty,
+    updateProperty,
     deleteProperty,
     getProperty
   };
