@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,105 +15,25 @@ import {
   Bar, PieChart as RechartsPieChart, Cell, Area, AreaChart, Pie
 } from 'recharts';
 
-// Importar os novos componentes
+// Importar os componentes e o novo hook
 import PeriodSelector from './PeriodSelector';
 import AlertsPanel from './AlertsPanel';
 import ComparativeAnalysis from './ComparativeAnalysis';
 import OccupancyChart from './OccupancyChart';
+import { useReservationData } from '@/hooks/useReservationData';
 
 interface ForecastDashboardProps {
   propertyId: string;
 }
 
-interface ReservaData {
-  id: string;
-  data_checkin: string;
-  data_checkout: string;
-  valor_total: number;
-  situacao: string;
-  canal?: string;
-  hospede_nome?: string;
-  tipo_quarto?: string;
-  noites?: number;
-  diaria_media?: number;
-}
-
 const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
-  const [reservas, setReservas] = useState<ReservaData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState<string>('');
+  // Usar o hook centralizado de dados
+  const { data: reservas, loading, lastUpdate, totalRecords, refreshData } = useReservationData(propertyId);
   
-  // Estados para o novo sistema de período
+  // Estados para o sistema de período
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-
-  const loadData = () => {
-    setLoading(true);
-    console.log('Carregando dados para propriedade:', propertyId);
-
-    try {
-      // Tentar carregar dados do novo formato (chunks)
-      const indexKey = `forecast_data_${propertyId}_index`;
-      const indexData = localStorage.getItem(indexKey);
-      
-      let allData: ReservaData[] = [];
-
-      if (indexData) {
-        const index = JSON.parse(indexData);
-        console.log('Carregando dados em chunks:', index);
-        
-        // Carregar todos os chunks
-        for (let i = 0; i < index.totalChunks; i++) {
-          const chunkKey = `${index.storagePrefix}_chunk_${i}`;
-          const chunkData = localStorage.getItem(chunkKey);
-          if (chunkData) {
-            const chunk = JSON.parse(chunkData);
-            allData = [...allData, ...chunk];
-          }
-        }
-        setLastUpdate(index.lastUpdated);
-      } else {
-        // Fallback para formatos antigos
-        const legacyKeys = [
-          `reservas_${propertyId}`,
-          `forecast_data_${propertyId}`,
-          `reservations_data_${propertyId}`
-        ];
-
-        for (const key of legacyKeys) {
-          const data = localStorage.getItem(key);
-          if (data) {
-            const parsed = JSON.parse(data);
-            if (Array.isArray(parsed)) {
-              allData = parsed;
-            } else if (parsed.data && Array.isArray(parsed.data)) {
-              allData = parsed.data;
-            }
-            console.log(`Dados carregados de ${key}:`, allData.length, 'registros');
-            break;
-          }
-        }
-      }
-
-      console.log('Total de dados carregados:', allData.length);
-      console.log('Primeiros 3 registros:', allData.slice(0, 3));
-
-      setReservas(allData);
-      if (!lastUpdate && allData.length > 0) {
-        setLastUpdate(new Date().toISOString());
-      }
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-      setReservas([]);
-    }
-
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    loadData();
-  }, [propertyId]);
 
   // Filtrar dados baseado no período selecionado
   const filteredData = React.useMemo(() => {
@@ -131,7 +52,7 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
         return reservaYear === selectedYear;
       }
       
-      return true; // Para outros períodos, retornar todos os dados por enquanto
+      return true;
     });
   }, [reservas, selectedPeriod, selectedYear, selectedMonth]);
 
@@ -155,10 +76,10 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
     const totalNoites = reservasConfirmadas.reduce((sum, r) => sum + (r.noites || 1), 0);
     const adr = totalNoites > 0 ? receitaTotal / totalNoites : 0;
 
-    // Calcular ocupação (assumindo 100 quartos disponíveis por dia)
-    const dates = [...new Set(reservasConfirmadas.map(r => r.data_checkin))];
-    const quartosOcupados = dates.length;
-    const quartosDisponiveis = dates.length * 100; // 100 quartos por dia
+    // Calcular ocupação baseada nas datas únicas
+    const dates = [...new Set(reservasConfirmadas.map(r => r.data_checkin?.split('T')[0]))].filter(Boolean);
+    const quartosOcupados = reservasConfirmadas.length;
+    const quartosDisponiveis = dates.length * 100; // Assumindo 100 quartos por dia
     const ocupacao = quartosDisponiveis > 0 ? (quartosOcupados / quartosDisponiveis) * 100 : 0;
 
     return {
@@ -172,7 +93,6 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
 
   // Gerar dados comparativos para análise
   const comparativeData = React.useMemo(() => {
-    // Simular dados comparativos (em uma implementação real, estes viriam do banco de dados)
     const periods = ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4'];
     
     return periods.map(period => ({
@@ -194,7 +114,7 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
     filteredData.forEach(reserva => {
       if (!reserva.data_checkin) return;
       
-      const date = reserva.data_checkin.split('T')[0]; // Formato YYYY-MM-DD
+      const date = reserva.data_checkin.split('T')[0];
       
       if (!dataMap.has(date)) {
         dataMap.set(date, {
@@ -261,7 +181,7 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
             {lastUpdate && ` Última atualização: ${new Date(lastUpdate).toLocaleString('pt-BR')}`}
           </p>
         </div>
-        <Button onClick={loadData} variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700">
+        <Button onClick={refreshData} variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700">
           <RefreshCw className="w-4 h-4 mr-2" />
           Atualizar
         </Button>
@@ -281,11 +201,11 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
       <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
         <CardContent className="p-4">
           <div className="flex items-center gap-4">
-            {reservas.length > 0 ? (
+            {totalRecords > 0 ? (
               <>
                 <CheckCircle className="w-5 h-5 text-green-400" />
                 <span className="text-green-400 font-medium">
-                  {filteredData.length} registros no período selecionado ({reservas.length} total)
+                  {filteredData.length} registros no período selecionado ({totalRecords} total)
                 </span>
               </>
             ) : (
@@ -381,7 +301,7 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
         </div>
       </div>
 
-      {/* Novo Gráfico de Ocupação */}
+      {/* Gráfico de Ocupação */}
       <OccupancyChart 
         propertyId={propertyId}
         selectedYear={selectedYear}
@@ -389,7 +309,7 @@ const ForecastDashboard = ({ propertyId }: ForecastDashboardProps) => {
       />
 
       {/* Gráficos e Análise Comparativa */}
-      {reservas.length > 0 && (
+      {totalRecords > 0 && (
         <Tabs defaultValue="comparative" className="space-y-4">
           <TabsList className="bg-slate-800/50 border border-slate-700/50">
             <TabsTrigger value="comparative" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
