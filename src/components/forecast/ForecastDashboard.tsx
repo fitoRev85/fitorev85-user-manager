@@ -12,7 +12,7 @@ import {
 import { 
   LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, 
   Tooltip, Legend, ResponsiveContainer, BarChart as RechartsBarChart, 
-  Bar, PieChart as RechartsPieChart, Cell, Area, AreaChart
+  Bar, PieChart as RechartsPieChart, Cell, Area, AreaChart, Pie
 } from 'recharts';
 
 interface ForecastDashboardProps {
