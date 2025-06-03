@@ -53,6 +53,7 @@ const PropertyCard = ({ property }: { property: Property }) => {
 };
 
 function Properties() {
+  const navigate = useNavigate();
   const { properties, addProperty, updateProperty, deleteProperty } = useProperties();
   const [open, setOpen] = React.useState(false);
   const [isEditing, setIsEditing] = useState(false);
