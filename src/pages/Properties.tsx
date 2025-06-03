@@ -115,84 +115,93 @@ function Properties() {
     <div className="container mx-auto py-10">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Propriedades</h1>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline">
-              <Plus className="w-4 h-4 mr-2" />
-              Adicionar Propriedade
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>{isEditing ? 'Editar Propriedade' : 'Adicionar Propriedade'}</DialogTitle>
-              <DialogDescription>
-                {isEditing
-                  ? 'Atualize os detalhes da propriedade.'
-                  : 'Adicione uma nova propriedade ao sistema.'}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">
-                  Nome
-                </Label>
-                <Input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={newProperty.name}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                />
+        <div className="flex gap-3">
+          <Button
+            onClick={() => navigate('/executive')}
+            className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white"
+          >
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Dashboard Executivo
+          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Plus className="w-4 h-4 mr-2" />
+                Adicionar Propriedade
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>{isEditing ? 'Editar Propriedade' : 'Adicionar Propriedade'}</DialogTitle>
+                <DialogDescription>
+                  {isEditing
+                    ? 'Atualize os detalhes da propriedade.'
+                    : 'Adicione uma nova propriedade ao sistema.'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="name" className="text-right">
+                    Nome
+                  </Label>
+                  <Input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={newProperty.name}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="location" className="text-right">
+                    Localização
+                  </Label>
+                  <Input
+                    type="text"
+                    id="location"
+                    name="location"
+                    value={newProperty.location}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="rooms" className="text-right">
+                    Quartos
+                  </Label>
+                  <Input
+                    type="number"
+                    id="rooms"
+                    name="rooms"
+                    value={newProperty.rooms}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="description" className="text-right">
+                    Descrição
+                  </Label>
+                  <Input
+                    id="description"
+                    name="description"
+                    value={newProperty.description}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                  />
+                </div>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="location" className="text-right">
-                  Localização
-                </Label>
-                <Input
-                  type="text"
-                  id="location"
-                  name="location"
-                  value={newProperty.location}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="rooms" className="text-right">
-                  Quartos
-                </Label>
-                <Input
-                  type="number"
-                  id="rooms"
-                  name="rooms"
-                  value={newProperty.rooms}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="description" className="text-right">
-                  Descrição
-                </Label>
-                <Input
-                  id="description"
-                  name="description"
-                  value={newProperty.description}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              {isEditing ? (
-                <Button onClick={handleUpdateProperty}>Atualizar</Button>
-              ) : (
-                <Button onClick={handleAddProperty}>Salvar</Button>
-              )}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                {isEditing ? (
+                  <Button onClick={handleUpdateProperty}>Atualizar</Button>
+                ) : (
+                  <Button onClick={handleAddProperty}>Salvar</Button>
+                )}
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
