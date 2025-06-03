@@ -1,72 +1,129 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Brain, Play, RefreshCw, Download, TrendingUp } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ScatterChart, Scatter } from 'recharts';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Brain, TrendingUp, TrendingDown, Minus, Settings2, Target } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ScatterChart, Scatter, BarChart, Bar } from 'recharts';
+import { useMLForecasting } from '@/hooks/useMLForecasting';
+import { useToast } from '@/hooks/use-toast';
 
-const MLForecasting = () => {
-  const [selectedModel, setSelectedModel] = useState('random_forest');
-  const [forecastPeriod, setForecastPeriod] = useState('30');
-  const [isTraining, setIsTraining] = useState(false);
-  const [modelMetrics, setModelMetrics] = useState({
-    accuracy: 92.5,
-    mse: 0.024,
-    mae: 0.156,
-    r2: 0.889
-  });
+interface MLForecastingProps {
+  propertyId?: string;
+}
 
-  const [forecastData, setForecastData] = useState([
-    { date: '2024-01-08', predicted: 85, confidence_lower: 82, confidence_upper: 88, actual: null },
-    { date: '2024-01-09', predicted: 87, confidence_lower: 84, confidence_upper: 90, actual: null },
-    { date: '2024-01-10', predicted: 89, confidence_lower: 86, confidence_upper: 92, actual: null },
-    { date: '2024-01-11', predicted: 91, confidence_lower: 88, confidence_upper: 94, actual: null },
-    { date: '2024-01-12', predicted: 88, confidence_lower: 85, confidence_upper: 91, actual: null },
-    { date: '2024-01-13', predicted: 86, confidence_lower: 83, confidence_upper: 89, actual: null },
-    { date: '2024-01-14', predicted: 84, confidence_lower: 81, confidence_upper: 87, actual: null }
-  ]);
+const MLForecasting = ({ propertyId = '1' }: MLForecastingProps) => {
+  const { toast } = useToast();
+  const {
+    historical,
+    forecast,
+    seasonalPatterns,
+    model,
+    accuracy,
+    trend,
+    loading,
+    forecastDays,
+    setForecastDays,
+    selectedMetric,
+    setSelectedMetric,
+    manualAdjustments,
+    addManualAdjustment,
+    removeManualAdjustment
+  } = useMLForecasting(propertyId);
 
-  const [seasonalityData, setSeasonalityData] = useState([
-    { month: 'Jan', pattern: 75, trend: 78 },
-    { month: 'Fev', pattern: 72, trend: 76 },
-    { month: 'Mar', pattern: 85, trend: 88 },
-    { month: 'Abr', pattern: 82, trend: 85 },
-    { month: 'Mai', pattern: 78, trend: 80 },
-    { month: 'Jun', pattern: 90, trend: 92 },
-    { month: 'Jul', pattern: 95, trend: 96 },
-    { month: 'Ago', pattern: 93, trend: 94 },
-    { month: 'Set', pattern: 88, trend: 89 },
-    { month: 'Out', pattern: 85, trend: 86 },
-    { month: 'Nov', pattern: 80, trend: 82 },
-    { month: 'Dez', pattern: 92, trend: 94 }
-  ]);
+  const [adjustmentValue, setAdjustmentValue] = useState('');
+  const [adjustmentDate, setAdjustmentDate] = useState('');
+  const [adjustmentReason, setAdjustmentReason] = useState('');
 
-  const [modelComparison, setModelComparison] = useState([
-    { model: 'Linear Regression', accuracy: 78.5, training_time: '2s' },
-    { model: 'Random Forest', accuracy: 92.5, training_time: '45s' },
-    { model: 'ARIMA', accuracy: 88.2, training_time: '120s' },
-    { model: 'Neural Network', accuracy: 94.1, training_time: '300s' }
-  ]);
+  // Combinar dados históricos e previsões para o gráfico
+  const combinedData = [
+    ...historical.map(point => ({
+      date: point.date,
+      historical: point.y,
+      type: 'historical'
+    })),
+    ...forecast.map(point => ({
+      date: point.date,
+      forecast: point.y,
+      type: 'forecast'
+    }))
+  ];
 
-  const runForecast = () => {
-    setIsTraining(true);
-    // Simula treinamento do modelo
-    setTimeout(() => {
-      setIsTraining(false);
-      // Aqui seria feita a chamada para a API do backend
-      console.log(`Running ${selectedModel} forecast for ${forecastPeriod} days`);
-    }, 3000);
+  const handleManualAdjustment = () => {
+    if (!adjustmentDate || !adjustmentValue || !adjustmentReason) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Preencha todos os campos para o ajuste manual",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const originalPoint = forecast.find(p => p.date === adjustmentDate);
+    if (!originalPoint) {
+      toast({
+        title: "Data inválida",
+        description: "Selecione uma data válida da previsão",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    addManualAdjustment({
+      date: adjustmentDate,
+      originalValue: originalPoint.y,
+      adjustedValue: Number(adjustmentValue),
+      reason: adjustmentReason
+    });
+
+    setAdjustmentValue('');
+    setAdjustmentDate('');
+    setAdjustmentReason('');
+
+    toast({
+      title: "Ajuste aplicado",
+      description: "A previsão foi ajustada manualmente",
+    });
   };
 
-  const exportForecast = () => {
-    // Simula export dos dados
-    console.log('Exporting forecast data...');
+  const getTrendIcon = () => {
+    switch (trend) {
+      case 'crescente':
+        return <TrendingUp className="w-4 h-4 text-green-400" />;
+      case 'decrescente':
+        return <TrendingDown className="w-4 h-4 text-red-400" />;
+      default:
+        return <Minus className="w-4 h-4 text-yellow-400" />;
+    }
   };
+
+  const getMetricLabel = () => {
+    switch (selectedMetric) {
+      case 'occupancy':
+        return 'Ocupação (%)';
+      case 'revenue':
+        return 'Receita (R$)';
+      case 'adr':
+        return 'ADR (R$)';
+      default:
+        return 'Valor';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Brain className="w-8 h-8 animate-pulse text-blue-400" />
+        <span className="ml-2 text-white">Processando dados...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Controles do Modelo */}
+      {/* Controles */}
       <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
@@ -75,25 +132,24 @@ const MLForecasting = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Modelo ML</label>
-              <Select value={selectedModel} onValueChange={setSelectedModel}>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Métrica</label>
+              <Select value={selectedMetric} onValueChange={(value: any) => setSelectedMetric(value)}>
                 <SelectTrigger className="bg-slate-700/50 border-slate-600/50 text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-slate-600">
-                  <SelectItem value="linear_regression">Linear Regression</SelectItem>
-                  <SelectItem value="random_forest">Random Forest</SelectItem>
-                  <SelectItem value="arima">ARIMA</SelectItem>
-                  <SelectItem value="neural_network">Neural Network</SelectItem>
+                  <SelectItem value="occupancy">Ocupação</SelectItem>
+                  <SelectItem value="revenue">Receita</SelectItem>
+                  <SelectItem value="adr">ADR (Diária Média)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Período (dias)</label>
-              <Select value={forecastPeriod} onValueChange={setForecastPeriod}>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Período de Previsão</label>
+              <Select value={forecastDays.toString()} onValueChange={(value) => setForecastDays(Number(value))}>
                 <SelectTrigger className="bg-slate-700/50 border-slate-600/50 text-white">
                   <SelectValue />
                 </SelectTrigger>
@@ -101,75 +157,65 @@ const MLForecasting = () => {
                   <SelectItem value="7">7 dias</SelectItem>
                   <SelectItem value="14">14 dias</SelectItem>
                   <SelectItem value="30">30 dias</SelectItem>
+                  <SelectItem value="60">60 dias</SelectItem>
                   <SelectItem value="90">90 dias</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="flex items-end">
-              <Button
-                onClick={runForecast}
-                disabled={isTraining}
-                className="bg-blue-600 hover:bg-blue-700 w-full"
-              >
-                {isTraining ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    Treinando...
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-4 h-4 mr-2" />
-                    Executar Previsão
-                  </>
-                )}
-              </Button>
-            </div>
-
-            <div className="flex items-end">
-              <Button
-                onClick={exportForecast}
-                variant="outline"
-                className="border-slate-600 text-slate-300 hover:bg-slate-700 w-full"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Exportar
-              </Button>
-            </div>
-          </div>
-
-          {/* Métricas do Modelo */}
-          <div className="grid grid-cols-4 gap-4">
-            <div className="bg-blue-500/20 rounded-lg p-3 border border-blue-500/30">
-              <div className="text-sm text-blue-300">Acurácia</div>
-              <div className="text-xl font-bold text-blue-400">{modelMetrics.accuracy}%</div>
-            </div>
-            <div className="bg-green-500/20 rounded-lg p-3 border border-green-500/30">
-              <div className="text-sm text-green-300">R²</div>
-              <div className="text-xl font-bold text-green-400">{modelMetrics.r2}</div>
-            </div>
-            <div className="bg-orange-500/20 rounded-lg p-3 border border-orange-500/30">
-              <div className="text-sm text-orange-300">MAE</div>
-              <div className="text-xl font-bold text-orange-400">{modelMetrics.mae}</div>
-            </div>
-            <div className="bg-purple-500/20 rounded-lg p-3 border border-purple-500/30">
-              <div className="text-sm text-purple-300">MSE</div>
-              <div className="text-xl font-bold text-purple-400">{modelMetrics.mse}</div>
+              <div className="flex items-center gap-2 text-sm">
+                {getTrendIcon()}
+                <span className="text-slate-300">Tendência: {trend}</span>
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Previsões e Intervalos de Confiança */}
+      {/* Métricas do Modelo */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="bg-blue-500/20 border-blue-500/30">
+          <CardContent className="p-4">
+            <div className="text-sm text-blue-300">R² (Precisão)</div>
+            <div className="text-2xl font-bold text-blue-400">{(model.r2 * 100).toFixed(1)}%</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-green-500/20 border-green-500/30">
+          <CardContent className="p-4">
+            <div className="text-sm text-green-300">MAE</div>
+            <div className="text-2xl font-bold text-green-400">{accuracy.mae.toFixed(2)}</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-purple-500/20 border-purple-500/30">
+          <CardContent className="p-4">
+            <div className="text-sm text-purple-300">MAPE</div>
+            <div className="text-2xl font-bold text-purple-400">{accuracy.mape.toFixed(1)}%</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-orange-500/20 border-orange-500/30">
+          <CardContent className="p-4">
+            <div className="text-sm text-orange-300">Dados</div>
+            <div className="text-2xl font-bold text-orange-400">{historical.length}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Gráfico Principal: Histórico vs Previsão */}
       <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
         <CardHeader>
-          <CardTitle className="text-white">Previsões com Intervalos de Confiança</CardTitle>
+          <CardTitle className="text-white">Previsão vs Dados Históricos</CardTitle>
+          <p className="text-slate-400">Modelo: {model.equation}</p>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={400}>
-            <LineChart data={forecastData}>
+            <LineChart data={combinedData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-              <XAxis dataKey="date" stroke="#94a3b8" />
+              <XAxis 
+                dataKey="date" 
+                stroke="#94a3b8"
+                tickFormatter={(date) => new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+              />
               <YAxis stroke="#94a3b8" />
               <Tooltip 
                 contentStyle={{ 
@@ -178,26 +224,116 @@ const MLForecasting = () => {
                   borderRadius: '8px',
                   color: '#f1f5f9'
                 }} 
+                labelFormatter={(date) => new Date(date).toLocaleDateString('pt-BR')}
               />
-              <Line type="monotone" dataKey="confidence_lower" stroke="#64748b" strokeDasharray="5 5" name="Limite Inferior" />
-              <Line type="monotone" dataKey="confidence_upper" stroke="#64748b" strokeDasharray="5 5" name="Limite Superior" />
-              <Line type="monotone" dataKey="predicted" stroke="#3b82f6" strokeWidth={3} name="Previsão" />
+              <Line 
+                type="monotone" 
+                dataKey="historical" 
+                stroke="#3b82f6" 
+                strokeWidth={2} 
+                name={`${getMetricLabel()} (Histórico)`}
+                connectNulls={false}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="forecast" 
+                stroke="#10b981" 
+                strokeWidth={2} 
+                strokeDasharray="5 5"
+                name={`${getMetricLabel()} (Previsão)`}
+                connectNulls={false}
+              />
             </LineChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
-      {/* Análise de Sazonalidade */}
+      {/* Ajustes Manuais e Sazonalidade */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Ajustes Manuais */}
         <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
           <CardHeader>
-            <CardTitle className="text-white">Padrões Sazonais Detectados</CardTitle>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Settings2 className="w-5 h-5" />
+              Ajustes Manuais
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                type="date"
+                placeholder="Data"
+                value={adjustmentDate}
+                onChange={(e) => setAdjustmentDate(e.target.value)}
+                className="bg-slate-700/50 border-slate-600 text-white"
+              />
+              <Input
+                type="number"
+                placeholder="Novo valor"
+                value={adjustmentValue}
+                onChange={(e) => setAdjustmentValue(e.target.value)}
+                className="bg-slate-700/50 border-slate-600 text-white"
+              />
+            </div>
+            <Input
+              placeholder="Motivo do ajuste"
+              value={adjustmentReason}
+              onChange={(e) => setAdjustmentReason(e.target.value)}
+              className="bg-slate-700/50 border-slate-600 text-white"
+            />
+            <Button 
+              onClick={handleManualAdjustment}
+              className="w-full bg-blue-600 hover:bg-blue-700"
+            >
+              <Target className="w-4 h-4 mr-2" />
+              Aplicar Ajuste
+            </Button>
+
+            {/* Lista de ajustes */}
+            {manualAdjustments.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-slate-300">Ajustes Aplicados:</h4>
+                {manualAdjustments.map((adjustment, index) => (
+                  <div key={index} className="flex items-center justify-between p-2 bg-slate-700/30 rounded">
+                    <div>
+                      <div className="text-sm text-white">{new Date(adjustment.date).toLocaleDateString('pt-BR')}</div>
+                      <div className="text-xs text-slate-400">{adjustment.reason}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-green-400">{adjustment.adjustedValue.toFixed(1)}</div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => removeManualAdjustment(adjustment.date)}
+                        className="text-red-400 hover:text-red-300 h-6 w-6 p-0"
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Análise de Sazonalidade */}
+        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
+          <CardHeader>
+            <CardTitle className="text-white">Padrões Sazonais</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={seasonalityData}>
+              <BarChart data={seasonalPatterns}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                <XAxis dataKey="month" stroke="#94a3b8" />
+                <XAxis 
+                  dataKey="month" 
+                  stroke="#94a3b8"
+                  tickFormatter={(month) => {
+                    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+                    return months[month - 1];
+                  }}
+                />
                 <YAxis stroke="#94a3b8" />
                 <Tooltip 
                   contentStyle={{ 
@@ -207,39 +343,9 @@ const MLForecasting = () => {
                     color: '#f1f5f9'
                   }} 
                 />
-                <Line type="monotone" dataKey="pattern" stroke="#f59e0b" strokeWidth={2} name="Padrão Sazonal" />
-                <Line type="monotone" dataKey="trend" stroke="#10b981" strokeWidth={2} name="Tendência" />
-              </LineChart>
+                <Bar dataKey="seasonMultiplier" fill="#3b82f6" name="Multiplicador Sazonal" />
+              </BarChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-          <CardHeader>
-            <CardTitle className="text-white">Comparação de Modelos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {modelComparison.map((model, index) => (
-                <div key={index} className={`p-3 rounded-lg border ${
-                  model.model === 'Random Forest' ? 'bg-blue-500/20 border-blue-500/30' : 'bg-slate-700/50 border-slate-600/50'
-                }`}>
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-white">{model.model}</span>
-                    <span className="text-sm text-slate-400">{model.training_time}</span>
-                  </div>
-                  <div className="flex items-center mt-2">
-                    <div className="flex-1 bg-slate-600 rounded-full h-2 mr-3">
-                      <div 
-                        className="bg-blue-400 h-2 rounded-full" 
-                        style={{ width: `${model.accuracy}%` }}
-                      />
-                    </div>
-                    <span className="text-sm font-medium text-white">{model.accuracy}%</span>
-                  </div>
-                </div>
-              ))}
-            </div>
           </CardContent>
         </Card>
       </div>
