@@ -1,162 +1,254 @@
-
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Edit, Trash2, DollarSign } from 'lucide-react';
-import { CreateProperty } from '@/components/CreateProperty';
-import { useAuth } from '@/contexts/AuthContext';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
-import { useProperties } from '@/hooks/useProperties';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useProperties, Property } from "@/hooks/useProperties";
+import { BarChart3, DollarSign, Edit, Trash2, Plus } from 'lucide-react';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/ui/table"
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
-const Properties = () => {
+const PropertyCard = ({ property }: { property: Property }) => {
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const { user } = useAuth();
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  
-  const { properties, addProperty, deleteProperty } = useProperties();
 
-  const filteredProperties = properties.filter(property =>
-    property.name.toLowerCase().includes(search.toLowerCase()) ||
-    property.location.toLowerCase().includes(search.toLowerCase())
+  return (
+    <Card className="bg-white/10 backdrop-blur-sm border-white/20 hover:bg-white/20 transition-all duration-300">
+      <CardHeader>
+        <CardTitle className="text-lg font-semibold">{property.name}</CardTitle>
+      </CardHeader>
+      
+      <CardContent className="space-y-4">
+        <p>Localização: {property.location}</p>
+        <p>Quartos: {property.rooms}</p>
+        
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => navigate(`/rms/${property.id}`)}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <BarChart3 className="w-4 h-4 mr-2" />
+            RMS Dashboard
+          </Button>
+          
+          <Button 
+            onClick={() => navigate(`/pricing/${property.id}`)}
+            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+          >
+            <DollarSign className="w-4 h-4 mr-2" />
+            Pricing
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
+};
 
-  const handleCreateProperty = (newProperty: { name: string; location: string; rooms: string; description: string }) => {
-    console.log('Creating property:', newProperty);
-    
-    const property = addProperty(newProperty);
-    setIsCreateModalOpen(false);
-    
-    toast({
-      title: "Propriedade criada",
-      description: `${property.name} foi adicionada com sucesso.`,
+function Properties() {
+  const { properties, addProperty, updateProperty, deleteProperty } = useProperties();
+  const [open, setOpen] = React.useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  const [newProperty, setNewProperty] = useState({
+    name: '',
+    location: '',
+    rooms: '',
+    description: ''
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setNewProperty({
+      ...newProperty,
+      [e.target.name]: e.target.value
     });
   };
 
-  const handleDeleteProperty = (propertyId: string) => {
-    const propertyToDelete = properties.find(p => p.id === propertyId);
-    
-    if (window.confirm(`Tem certeza que deseja excluir a propriedade "${propertyToDelete?.name}"?`)) {
-      deleteProperty(propertyId);
-      
-      toast({
-        title: "Propriedade excluída",
-        description: `${propertyToDelete?.name} foi removida com sucesso.`,
-        variant: "destructive",
-      });
+  const handleAddProperty = () => {
+    addProperty(newProperty);
+    setNewProperty({ name: '', location: '', rooms: '', description: '' });
+    setOpen(false);
+  };
+
+  const handleEditProperty = (property: Property) => {
+    setIsEditing(true);
+    setSelectedProperty(property);
+    setNewProperty({
+      name: property.name,
+      location: property.location,
+      rooms: property.rooms.toString(),
+      description: property.description || ''
+    });
+    setOpen(true);
+  };
+
+  const handleUpdateProperty = () => {
+    if (selectedProperty) {
+      const updatedProperty: Property = {
+        ...selectedProperty,
+        name: newProperty.name,
+        location: newProperty.location,
+        rooms: parseInt(newProperty.rooms),
+        description: newProperty.description
+      };
+      updateProperty(updatedProperty);
+      setNewProperty({ name: '', location: '', rooms: '', description: '' });
+      setOpen(false);
+      setIsEditing(false);
+      setSelectedProperty(null);
     }
   };
 
+  const handleDeleteProperty = (propertyId: string) => {
+    deleteProperty(propertyId);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
-      <div className="max-w-7xl mx-auto p-6">
-        
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-2">Gestão de Propriedades</h1>
-              <p className="text-gray-400">Gerencie suas propriedades e acesse os módulos de análise</p>
+    <div className="container mx-auto py-10">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold">Propriedades</h1>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline">
+              <Plus className="w-4 h-4 mr-2" />
+              Adicionar Propriedade
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>{isEditing ? 'Editar Propriedade' : 'Adicionar Propriedade'}</DialogTitle>
+              <DialogDescription>
+                {isEditing
+                  ? 'Atualize os detalhes da propriedade.'
+                  : 'Adicione uma nova propriedade ao sistema.'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">
+                  Nome
+                </Label>
+                <Input
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={newProperty.name}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="location" className="text-right">
+                  Localização
+                </Label>
+                <Input
+                  type="text"
+                  id="location"
+                  name="location"
+                  value={newProperty.location}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="rooms" className="text-right">
+                  Quartos
+                </Label>
+                <Input
+                  type="number"
+                  id="rooms"
+                  name="rooms"
+                  value={newProperty.rooms}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="description" className="text-right">
+                  Descrição
+                </Label>
+                <Input
+                  id="description"
+                  name="description"
+                  value={newProperty.description}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                />
+              </div>
             </div>
-            <div className="flex gap-3">
-              <Button 
-                onClick={() => navigate('/financial')}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <DollarSign className="w-4 h-4 mr-2" />
-                Módulo Financeiro
-              </Button>
-              {user?.categoria === 'admin' && (
-                <Button 
-                  onClick={() => navigate('/users')}
-                  className="bg-purple-600 hover:bg-purple-700"
-                >
-                  Gerenciar Usuários
-                </Button>
+            <DialogFooter>
+              {isEditing ? (
+                <Button onClick={handleUpdateProperty}>Atualizar</Button>
+              ) : (
+                <Button onClick={handleAddProperty}>Salvar</Button>
               )}
-              <Button onClick={() => setIsCreateModalOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="w-4 h-4 mr-2" />
-                Nova Propriedade
-              </Button>
-            </div>
-          </div>
-        </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
 
-        {/* Search Bar */}
-        <div className="mb-6">
-          <Input
-            type="text"
-            placeholder="Buscar propriedade..."
-            className="bg-gray-800 border-gray-700 text-white"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {properties.map(property => (
+          <PropertyCard key={property.id} property={property} />
+        ))}
+      </div>
 
-        {/* Table */}
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader>
-            <CardTitle className="text-white">Lista de Propriedades ({filteredProperties.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow className="border-gray-800">
-                  <TableHead className="text-gray-400">Nome</TableHead>
-                  <TableHead className="text-gray-400">Localização</TableHead>
-                  <TableHead className="text-gray-400">Quartos</TableHead>
-                  <TableHead className="text-gray-400">Ações</TableHead>
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold mb-4">Lista de Propriedades</h2>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>Localização</TableHead>
+                <TableHead>Quartos</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {properties.map((property) => (
+                <TableRow key={property.id}>
+                  <TableCell className="font-medium">{property.name}</TableCell>
+                  <TableCell>{property.location}</TableCell>
+                  <TableCell>{property.rooms}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditProperty(property)}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Editar
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteProperty(property.id)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Deletar
+                    </Button>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProperties.map(property => (
-                  <TableRow key={property.id} className="border-gray-800">
-                    <TableCell className="text-white">{property.name}</TableCell>
-                    <TableCell className="text-gray-300">{property.location}</TableCell>
-                    <TableCell className="text-blue-400">{property.rooms}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" className="text-blue-400 hover:text-blue-300">
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-red-400 hover:text-red-300"
-                          onClick={() => handleDeleteProperty(property.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-green-400 hover:text-green-300"
-                          onClick={() => navigate(`/rms/${property.id}`)}
-                        >
-                          RMS
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        {/* Create Modal */}
-        <CreateProperty 
-          isOpen={isCreateModalOpen} 
-          onClose={() => setIsCreateModalOpen(false)}
-          onSubmit={handleCreateProperty}
-        />
+              ))}
+            </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell colSpan={4}>Total de propriedades: {properties.length}</TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
+        </div>
       </div>
     </div>
   );
-};
+}
 
 export default Properties;

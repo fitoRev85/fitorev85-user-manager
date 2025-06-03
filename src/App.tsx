@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,6 +10,7 @@ import UserManagement from "./pages/UserManagement";
 import RMSForecastPace from "./pages/RMSForecastPace";
 import NotFound from "./pages/NotFound";
 import Financial from "./pages/Financial";
+import Pricing from "./pages/Pricing";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +37,7 @@ function AppRoutes() {
       <Route path="/properties" element={<Properties />} />
       <Route path="/dashboard" element={<Navigate to="/" replace />} />
       <Route path="/rms/:propertyId" element={<RMSForecastPace />} />
+      <Route path="/pricing/:propertyId" element={<Pricing />} />
       <Route path="/financial" element={<Financial />} />
       {user.categoria === 'admin' && (
         <Route path="/users" element={<UserManagement />} />
