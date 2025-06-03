@@ -11,6 +11,7 @@ import RMSForecastPace from "./pages/RMSForecastPace";
 import NotFound from "./pages/NotFound";
 import Financial from "./pages/Financial";
 import Pricing from "./pages/Pricing";
+import Reports from "./pages/Reports";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ function AppRoutes() {
       <Route path="/dashboard" element={<Navigate to="/" replace />} />
       <Route path="/rms/:propertyId" element={<RMSForecastPace />} />
       <Route path="/pricing/:propertyId" element={<Pricing />} />
+      <Route path="/reports" element={<Reports />} />
       <Route path="/financial" element={<Financial />} />
       {user.categoria === 'admin' && (
         <Route path="/users" element={<UserManagement />} />

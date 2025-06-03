@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useProperties, Property } from "@/hooks/useProperties";
-import { BarChart3, DollarSign, Edit, Trash2, Plus } from 'lucide-react';
+import { BarChart3, DollarSign, Edit, Trash2, Plus, TrendingUp, FileText } from 'lucide-react';
 import {
   Table,
   TableHeader,
@@ -195,8 +195,46 @@ function Properties() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {properties.map(property => (
-          <PropertyCard key={property.id} property={property} />
+        {properties.map((property) => (
+          <Card key={property.id} className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50 hover:bg-slate-700/50 transition-all duration-300 group">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">{property.name}</CardTitle>
+            </CardHeader>
+            
+            <CardContent className="space-y-4">
+              <p>Localização: {property.location}</p>
+              <p>Quartos: {property.rooms}</p>
+            </CardContent>
+            
+            <CardFooter className="space-y-3">
+              <div className="flex gap-2 w-full">
+                <Button
+                  onClick={() => navigate(`/rms/${property.id}`)}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium"
+                >
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  RMS & Forecast
+                </Button>
+                
+                <Button
+                  onClick={() => navigate(`/pricing/${property.id}`)}
+                  className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium"
+                >
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  Pricing
+                </Button>
+              </div>
+              
+              <Button
+                onClick={() => navigate('/reports')}
+                variant="outline"
+                className="w-full border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Relatórios
+              </Button>
+            </CardFooter>
+          </Card>
         ))}
       </div>
 
