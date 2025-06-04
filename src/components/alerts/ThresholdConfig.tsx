@@ -27,12 +27,12 @@ const ThresholdConfig = ({
   const { properties } = useProperties();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingThreshold, setEditingThreshold] = useState<AlertThreshold | null>(null);
-  const [newThreshold, setNewThreshold] = useState({
+  const [newThreshold, setNewThreshold] = useState<Omit<AlertThreshold, 'id'>>({
     propertyId: '',
-    metric: 'occupancy' as const,
+    metric: 'occupancy',
     threshold: 0,
-    operator: 'below' as const,
-    priority: 'medium' as const,
+    operator: 'below',
+    priority: 'medium',
     name: '',
     enabled: true
   });
@@ -174,7 +174,7 @@ const ThresholdConfig = ({
                     <label className="block text-sm font-medium text-slate-300 mb-2">Métrica</label>
                     <Select 
                       value={newThreshold.metric} 
-                      onValueChange={(value: any) => setNewThreshold({...newThreshold, metric: value})}
+                      onValueChange={(value: 'occupancy' | 'adr' | 'revenue' | 'cancellation') => setNewThreshold({...newThreshold, metric: value})}
                     >
                       <SelectTrigger className="bg-slate-700/50 border-slate-600 text-white">
                         <SelectValue />
@@ -192,7 +192,7 @@ const ThresholdConfig = ({
                     <label className="block text-sm font-medium text-slate-300 mb-2">Operador</label>
                     <Select 
                       value={newThreshold.operator} 
-                      onValueChange={(value: any) => setNewThreshold({...newThreshold, operator: value})}
+                      onValueChange={(value: 'above' | 'below') => setNewThreshold({...newThreshold, operator: value})}
                     >
                       <SelectTrigger className="bg-slate-700/50 border-slate-600 text-white">
                         <SelectValue />
@@ -221,7 +221,7 @@ const ThresholdConfig = ({
                     <label className="block text-sm font-medium text-slate-300 mb-2">Prioridade</label>
                     <Select 
                       value={newThreshold.priority} 
-                      onValueChange={(value: any) => setNewThreshold({...newThreshold, priority: value})}
+                      onValueChange={(value: 'low' | 'medium' | 'high') => setNewThreshold({...newThreshold, priority: value})}
                     >
                       <SelectTrigger className="bg-slate-700/50 border-slate-600 text-white">
                         <SelectValue />

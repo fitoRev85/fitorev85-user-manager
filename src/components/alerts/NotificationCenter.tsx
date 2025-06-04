@@ -131,13 +131,13 @@ const NotificationCenter = ({
 
         {/* Filtros */}
         <div className="flex items-center gap-3 mb-4">
-          <div className="flex-1">
+          <div className="flex-1 relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
             <Input
               placeholder="Buscar alertas..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-slate-700/50 border-slate-600 text-white"
-              icon={<Search className="w-4 h-4" />}
+              className="bg-slate-700/50 border-slate-600 text-white pl-10"
             />
           </div>
           
