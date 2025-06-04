@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { DraggableWidget } from './DraggableWidget';
 
-interface Widget {
+export interface Widget {
   id: string;
   title: string;
   component: React.ReactNode;

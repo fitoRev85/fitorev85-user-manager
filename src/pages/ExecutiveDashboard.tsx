@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { ResizableLayout } from '@/components/layout/ResizableLayout';
-import { WidgetGrid } from '@/components/widgets/WidgetGrid';
+import { WidgetGrid, Widget } from '@/components/widgets/WidgetGrid';
 import AlertsPanel from '@/components/forecast/AlertsPanel';
 
 const ExecutiveDashboard = () => {
@@ -65,7 +64,7 @@ const ExecutiveDashboard = () => {
   }));
 
   // Widgets para o dashboard reorganizável
-  const [widgets, setWidgets] = useState([
+  const [widgets, setWidgets] = useState<Widget[]>([
     {
       id: 'revenue-chart',
       title: 'Receita por Propriedade',
