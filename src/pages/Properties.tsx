@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -85,7 +86,7 @@ const Properties = () => {
                   {property.name}
                 </h3>
                 <p className="text-slate-400 text-sm">
-                  {property.address}, {property.city}
+                  {property.location}, {property.city}
                 </p>
               </CardContent>
             </Card>
