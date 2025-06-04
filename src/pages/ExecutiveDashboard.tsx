@@ -3,13 +3,19 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { BarChart3, TrendingUp, TrendingDown, Award, AlertTriangle, Building2 } from 'lucide-react';
+import { BarChart3, TrendingUp, TrendingDown, Award, AlertTriangle, Building2, ArrowLeft } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useProperties } from '@/hooks/useProperties';
 import { useReservationData } from '@/hooks/useReservationData';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
+import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
+import { ResizableLayout } from '@/components/layout/ResizableLayout';
+import { WidgetGrid } from '@/components/widgets/WidgetGrid';
 import AlertsPanel from '@/components/forecast/AlertsPanel';
 
 const ExecutiveDashboard = () => {
+  const navigate = useNavigate();
   const { properties } = useProperties();
   const [selectedPeriod, setSelectedPeriod] = useState('month');
 
@@ -58,20 +64,97 @@ const ExecutiveDashboard = () => {
     revpar: p.revpar
   }));
 
-  const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
+  // Widgets para o dashboard reorganizável
+  const [widgets, setWidgets] = useState([
+    {
+      id: 'revenue-chart',
+      title: 'Receita por Propriedade',
+      order: 0,
+      component: (
+        <ResponsiveContainer width="100%" height={250}>
+          <BarChart data={comparisonData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+            <XAxis dataKey="name" stroke="#94a3b8" />
+            <YAxis stroke="#94a3b8" tickFormatter={(value) => `R$ ${value.toLocaleString()}`} />
+            <Tooltip 
+              formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR')}`, 'Receita']}
+              contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569' }}
+            />
+            <Bar dataKey="revenue" fill="#3b82f6" />
+          </BarChart>
+        </ResponsiveContainer>
+      )
+    },
+    {
+      id: 'occupancy-chart',
+      title: 'Ocupação por Propriedade',
+      order: 1,
+      component: (
+        <ResponsiveContainer width="100%" height={250}>
+          <BarChart data={comparisonData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+            <XAxis dataKey="name" stroke="#94a3b8" />
+            <YAxis stroke="#94a3b8" tickFormatter={(value) => `${value}%`} />
+            <Tooltip 
+              formatter={(value: number) => [`${value.toFixed(1)}%`, 'Ocupação']}
+              contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569' }}
+            />
+            <Bar dataKey="occupancy" fill="#10b981" />
+          </BarChart>
+        </ResponsiveContainer>
+      )
+    },
+    {
+      id: 'ranking-revenue',
+      title: 'Ranking por Receita',
+      order: 2,
+      component: (
+        <div className="space-y-3">
+          {sortedByRevenue.slice(0, 5).map((property, index) => (
+            <div key={property.id} className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg">
+              <div className="flex items-center gap-3">
+                <Badge className={`${index === 0 ? 'bg-yellow-500/20 text-yellow-400' : 
+                                 index === 1 ? 'bg-gray-500/20 text-gray-400' :
+                                 index === 2 ? 'bg-orange-500/20 text-orange-400' :
+                                 'bg-slate-500/20 text-slate-400'}`}>
+                  {index + 1}°
+                </Badge>
+                <span className="text-white font-medium text-sm">{property.name}</span>
+              </div>
+              <span className="text-green-400 font-bold text-sm">
+                R$ {property.revenue.toLocaleString('pt-BR')}
+              </span>
+            </div>
+          ))}
+        </div>
+      )
+    }
+  ]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
+        <Breadcrumbs />
+        
         {/* Header */}
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold text-white flex items-center justify-center gap-3">
-            <Building2 className="w-8 h-8 text-blue-400" />
-            Dashboard Executivo
-          </h1>
-          <p className="text-xl text-slate-300">
-            Visão consolidada de todas as propriedades
-          </p>
+        <div className="flex items-center gap-4 mb-6">
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/')}
+            className="border-slate-600 text-slate-300 hover:bg-slate-700"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Voltar
+          </Button>
+          <div className="text-center flex-1">
+            <h1 className="text-4xl font-bold text-white flex items-center justify-center gap-3">
+              <Building2 className="w-8 h-8 text-blue-400" />
+              Dashboard Executivo
+            </h1>
+            <p className="text-xl text-slate-300">
+              Visão consolidada de todas as propriedades
+            </p>
+          </div>
         </div>
 
         {/* KPIs Consolidados */}
@@ -141,256 +224,32 @@ const ExecutiveDashboard = () => {
           </Card>
         </div>
 
-        {/* Conteúdo Principal */}
-        <Tabs defaultValue="comparison" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-slate-800/50 border border-slate-700/50">
-            <TabsTrigger value="comparison" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
-              Comparação
-            </TabsTrigger>
-            <TabsTrigger value="ranking" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
-              Ranking
-            </TabsTrigger>
-            <TabsTrigger value="alerts" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
-              Alertas
-            </TabsTrigger>
-            <TabsTrigger value="details" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
-              Detalhes
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="comparison" className="space-y-6">
-            {/* Gráficos Comparativos */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-                <CardHeader>
-                  <CardTitle className="text-white">Receita por Propriedade</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={comparisonData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                      <XAxis dataKey="name" stroke="#94a3b8" />
-                      <YAxis stroke="#94a3b8" tickFormatter={(value) => `R$ ${value.toLocaleString()}`} />
-                      <Tooltip 
-                        formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR')}`, 'Receita']}
-                        contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569' }}
-                      />
-                      <Bar dataKey="revenue" fill="#3b82f6" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-                <CardHeader>
-                  <CardTitle className="text-white">Ocupação por Propriedade</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={comparisonData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                      <XAxis dataKey="name" stroke="#94a3b8" />
-                      <YAxis stroke="#94a3b8" tickFormatter={(value) => `${value}%`} />
-                      <Tooltip 
-                        formatter={(value: number) => [`${value.toFixed(1)}%`, 'Ocupação']}
-                        contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569' }}
-                      />
-                      <Bar dataKey="occupancy" fill="#10b981" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-                <CardHeader>
-                  <CardTitle className="text-white">ADR por Propriedade</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={comparisonData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                      <XAxis dataKey="name" stroke="#94a3b8" />
-                      <YAxis stroke="#94a3b8" tickFormatter={(value) => `R$ ${value}`} />
-                      <Tooltip 
-                        formatter={(value: number) => [`R$ ${value.toFixed(2)}`, 'ADR']}
-                        contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569' }}
-                      />
-                      <Bar dataKey="adr" fill="#f59e0b" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-                <CardHeader>
-                  <CardTitle className="text-white">RevPAR por Propriedade</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={comparisonData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                      <XAxis dataKey="name" stroke="#94a3b8" />
-                      <YAxis stroke="#94a3b8" tickFormatter={(value) => `R$ ${value}`} />
-                      <Tooltip 
-                        formatter={(value: number) => [`R$ ${value.toFixed(2)}`, 'RevPAR']}
-                        contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569' }}
-                      />
-                      <Bar dataKey="revpar" fill="#ef4444" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+        {/* Layout Redimensionável com Widgets */}
+        <ResizableLayout
+          leftPanel={
+            <div className="space-y-4">
+              <h3 className="text-white font-semibold">Filtros e Controles</h3>
+              <div className="space-y-2">
+                <select 
+                  className="w-full bg-slate-700 text-white rounded-lg p-2 border border-slate-600"
+                  value={selectedPeriod}
+                  onChange={(e) => setSelectedPeriod(e.target.value)}
+                >
+                  <option value="week">Última Semana</option>
+                  <option value="month">Último Mês</option>
+                  <option value="quarter">Último Trimestre</option>
+                  <option value="year">Último Ano</option>
+                </select>
+              </div>
             </div>
-          </TabsContent>
-
-          <TabsContent value="ranking" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Ranking por Receita */}
-              <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <Award className="w-5 h-5 text-yellow-400" />
-                    Ranking por Receita
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {sortedByRevenue.map((property, index) => (
-                    <div key={property.id} className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <Badge className={`${index === 0 ? 'bg-yellow-500/20 text-yellow-400' : 
-                                           index === 1 ? 'bg-gray-500/20 text-gray-400' :
-                                           index === 2 ? 'bg-orange-500/20 text-orange-400' :
-                                           'bg-slate-500/20 text-slate-400'}`}>
-                          {index + 1}°
-                        </Badge>
-                        <span className="text-white font-medium">{property.name}</span>
-                      </div>
-                      <span className="text-green-400 font-bold">
-                        R$ {property.revenue.toLocaleString('pt-BR')}
-                      </span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-
-              {/* Ranking por Ocupação */}
-              <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5 text-blue-400" />
-                    Ranking por Ocupação
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {sortedByOccupancy.map((property, index) => (
-                    <div key={property.id} className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <Badge className={`${index === 0 ? 'bg-yellow-500/20 text-yellow-400' : 
-                                           index === 1 ? 'bg-gray-500/20 text-gray-400' :
-                                           index === 2 ? 'bg-orange-500/20 text-orange-400' :
-                                           'bg-slate-500/20 text-slate-400'}`}>
-                          {index + 1}°
-                        </Badge>
-                        <span className="text-white font-medium">{property.name}</span>
-                      </div>
-                      <span className="text-blue-400 font-bold">
-                        {property.occupancy.toFixed(1)}%
-                      </span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-
-              {/* Ranking por RevPAR */}
-              <Card className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-purple-400" />
-                    Ranking por RevPAR
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {sortedByRevPAR.map((property, index) => (
-                    <div key={property.id} className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <Badge className={`${index === 0 ? 'bg-yellow-500/20 text-yellow-400' : 
-                                           index === 1 ? 'bg-gray-500/20 text-gray-400' :
-                                           index === 2 ? 'bg-orange-500/20 text-orange-400' :
-                                           'bg-slate-500/20 text-slate-400'}`}>
-                          {index + 1}°
-                        </Badge>
-                        <span className="text-white font-medium">{property.name}</span>
-                      </div>
-                      <span className="text-purple-400 font-bold">
-                        R$ {property.revpar.toFixed(2)}
-                      </span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="alerts" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {properties.map(property => {
-                const propertyData = consolidatedData.find(p => p.id === property.id);
-                if (!propertyData) return null;
-
-                return (
-                  <AlertsPanel
-                    key={property.id}
-                    propertyId={property.id}
-                    currentMetrics={{
-                      adr: propertyData.adr,
-                      occupancy: propertyData.occupancy,
-                      revenue: propertyData.revenue,
-                      forecast: propertyData.revpar
-                    }}
-                  />
-                );
-              })}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="details" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {consolidatedData.map(property => (
-                <Card key={property.id} className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
-                  <CardHeader>
-                    <CardTitle className="text-white">{property.name}</CardTitle>
-                    <p className="text-slate-400">{property.location} • {property.rooms} quartos</p>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-slate-700/30 p-3 rounded-lg">
-                        <p className="text-slate-400 text-sm">Receita Total</p>
-                        <p className="text-white font-bold">R$ {property.revenue.toLocaleString('pt-BR')}</p>
-                      </div>
-                      <div className="bg-slate-700/30 p-3 rounded-lg">
-                        <p className="text-slate-400 text-sm">Reservas</p>
-                        <p className="text-white font-bold">{property.bookings}</p>
-                      </div>
-                      <div className="bg-slate-700/30 p-3 rounded-lg">
-                        <p className="text-slate-400 text-sm">ADR</p>
-                        <p className="text-white font-bold">R$ {property.adr.toFixed(2)}</p>
-                      </div>
-                      <div className="bg-slate-700/30 p-3 rounded-lg">
-                        <p className="text-slate-400 text-sm">Ocupação</p>
-                        <p className="text-white font-bold">{property.occupancy.toFixed(1)}%</p>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-blue-500/10 p-3 rounded-lg border-l-4 border-blue-500">
-                      <p className="text-blue-400 text-sm font-medium">RevPAR</p>
-                      <p className="text-white text-lg font-bold">R$ {property.revpar.toFixed(2)}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-        </Tabs>
+          }
+        >
+          <WidgetGrid
+            widgets={widgets}
+            onReorder={setWidgets}
+            className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+          />
+        </ResizableLayout>
       </div>
     </div>
   );

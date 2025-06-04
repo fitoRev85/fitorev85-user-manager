@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -5,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LoginForm } from "@/components/LoginForm";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import Properties from "./pages/Properties";
 import UserManagement from "./pages/UserManagement";
 import RMSForecastPace from "./pages/RMSForecastPace";
@@ -29,6 +31,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function AppRoutes() {
   const { user } = useAuth();
+  
+  // Enable keyboard shortcuts globally
+  useKeyboardShortcuts();
 
   if (!user) {
     return <LoginForm />;

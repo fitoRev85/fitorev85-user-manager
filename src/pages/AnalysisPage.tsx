@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrendingUp, Calendar, BarChart3, PieChart, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import PeriodComparison from '@/components/analysis/PeriodComparison';
 import VarianceAnalysis from '@/components/analysis/VarianceAnalysis';
 import KPITrending from '@/components/analysis/KPITrending';
@@ -16,6 +17,8 @@ const AnalysisPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
+        <Breadcrumbs />
+        
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <Button 
