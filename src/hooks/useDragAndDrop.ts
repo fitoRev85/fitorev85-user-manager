@@ -8,6 +8,28 @@ interface DragDropConfig {
 
 export const useDragAndDrop = ({ onFileDrop, acceptedTypes = [] }: DragDropConfig) => {
   const [isDragging, setIsDragging] = useState(false);
+  
+  const isAcceptedFileType = useCallback((file: File): boolean => {
+    if (acceptedTypes.length === 0) return true;
+    
+    return acceptedTypes.some(type => {
+      // Verificar por extensão de arquivo
+      if (type.startsWith('.')) {
+        return file.name.toLowerCase().endsWith(type.toLowerCase());
+      } 
+      // Verificar por tipo MIME
+      else if (type.includes('/')) {
+        return file.type === type;
+      }
+      // Verificação genérica (exemplo: 'csv' vai considerar '.csv' e 'text/csv')
+      else {
+        return (
+          file.name.toLowerCase().endsWith(`.${type.toLowerCase()}`) || 
+          file.type.toLowerCase().includes(type.toLowerCase())
+        );
+      }
+    });
+  }, [acceptedTypes]);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -33,11 +55,10 @@ export const useDragAndDrop = ({ onFileDrop, acceptedTypes = [] }: DragDropConfi
 
     const { files } = e.dataTransfer;
     if (files && files.length > 0) {
-      // Filter files by accepted types if specified
+      // Filtrar arquivos por tipos aceitos
       if (acceptedTypes.length > 0) {
-        const validFiles = Array.from(files).filter(file =>
-          acceptedTypes.some(type => file.type.includes(type) || file.name.endsWith(type))
-        );
+        const validFiles = Array.from(files).filter(file => isAcceptedFileType(file));
+        
         if (validFiles.length > 0) {
           const fileList = new DataTransfer();
           validFiles.forEach(file => fileList.items.add(file));
@@ -47,7 +68,7 @@ export const useDragAndDrop = ({ onFileDrop, acceptedTypes = [] }: DragDropConfi
         onFileDrop(files);
       }
     }
-  }, [onFileDrop, acceptedTypes]);
+  }, [onFileDrop, acceptedTypes, isAcceptedFileType]);
 
   return {
     isDragging,
