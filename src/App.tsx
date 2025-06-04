@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,6 +13,7 @@ import Financial from "./pages/Financial";
 import Pricing from "./pages/Pricing";
 import Reports from "./pages/Reports";
 import ExecutiveDashboard from "./pages/ExecutiveDashboard";
+import AnalysisPage from "./pages/AnalysisPage";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +40,7 @@ function AppRoutes() {
       <Route path="/properties" element={<Properties />} />
       <Route path="/dashboard" element={<Navigate to="/" replace />} />
       <Route path="/executive" element={<ExecutiveDashboard />} />
+      <Route path="/analysis" element={<AnalysisPage />} />
       <Route path="/rms/:propertyId" element={<RMSForecastPace />} />
       <Route path="/pricing/:propertyId" element={<Pricing />} />
       <Route path="/reports" element={<Reports />} />
