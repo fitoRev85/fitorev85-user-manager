@@ -11,6 +11,15 @@ import { useReservationData } from '@/hooks/useReservationData';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ScatterChart, Scatter, Cell } from 'recharts';
 import { Calculator, Target, TrendingUp, DollarSign } from 'lucide-react';
 
+interface PositioningDataPoint {
+  name: string;
+  price: number;
+  occupancy: number;
+  revpar: number;
+  isSelected: boolean;
+  isSimulated?: boolean;
+}
+
 const PricePositioningSimulator = () => {
   const { properties } = useProperties();
   const [selectedProperty, setSelectedProperty] = useState('1');
@@ -20,8 +29,8 @@ const PricePositioningSimulator = () => {
   const { data: reservations } = useReservationData(selectedProperty);
 
   // Calculate positioning data
-  const getPositioningData = () => {
-    const propertyData = properties.map(property => {
+  const getPositioningData = (): PositioningDataPoint[] => {
+    const propertyData: PositioningDataPoint[] = properties.map(property => {
       const propertyReservations = property.id === selectedProperty ? 
         reservations : 
         []; // In real scenario, we'd have data for all properties

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,29 +8,45 @@ import { useReservationData } from '@/hooks/useReservationData';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { BarChart3, Trophy, TrendingUp, Users } from 'lucide-react';
 
+interface PropertyData {
+  id: string;
+  name: string;
+  category: string;
+  location: string;
+  rooms: number;
+  revpar: number;
+  occupancy: number;
+  adr: number;
+  totalRevenue: number;
+  customerSatisfaction: number;
+  averageStay: number;
+  repeatCustomers: number;
+}
+
 const InternalBenchmarking = () => {
   const { properties } = useProperties();
   const [selectedPeriod, setSelectedPeriod] = useState('30');
   const [selectedMetric, setSelectedMetric] = useState('revpar');
 
   // Get data for all properties
-  const getAllPropertiesData = () => {
+  const getAllPropertiesData = (): PropertyData[] => {
     return properties.map(property => {
       // Simulate realistic data based on property characteristics
       const baseRevPAR = property.revpar || 150 + (property.rooms || 100) * 0.5;
       const baseOccupancy = property.occupancy || 70 + Math.random() * 15;
       const baseADR = property.adr || 200 + (property.rooms || 100) * 0.8;
+      const rooms = property.rooms || 100;
       
       return {
         id: property.id,
         name: property.name,
         category: property.category || 'Hotel',
         location: property.location,
-        rooms: property.rooms,
+        rooms: rooms,
         revpar: baseRevPAR,
         occupancy: baseOccupancy,
         adr: baseADR,
-        totalRevenue: baseRevPAR * parseInt(selectedPeriod) * property.rooms,
+        totalRevenue: baseRevPAR * parseInt(selectedPeriod) * rooms,
         customerSatisfaction: 4.1 + Math.random() * 0.8,
         averageStay: 2.1 + Math.random() * 1.5,
         repeatCustomers: 25 + Math.random() * 35
@@ -43,12 +58,12 @@ const InternalBenchmarking = () => {
 
   // Calculate rankings
   const getRankings = () => {
-    const metrics = ['revpar', 'occupancy', 'adr', 'totalRevenue', 'customerSatisfaction'];
+    const metrics = ['revpar', 'occupancy', 'adr', 'totalRevenue', 'customerSatisfaction'] as const;
     const rankings: Record<string, any[]> = {};
     
     metrics.forEach(metric => {
       rankings[metric] = [...propertiesData]
-        .sort((a, b) => (b[metric as keyof typeof b] as number) - (a[metric as keyof typeof a] as number))
+        .sort((a, b) => (b[metric] as number) - (a[metric] as number))
         .map((property, index) => ({
           ...property,
           rank: index + 1,
@@ -83,7 +98,8 @@ const InternalBenchmarking = () => {
       propertiesData.forEach(property => {
         // Simulate monthly variation
         const variation = 0.9 + Math.random() * 0.2;
-        data[property.name] = property[selectedMetric as keyof typeof property] * variation;
+        const metricValue = property[selectedMetric as keyof PropertyData] as number;
+        data[property.name] = metricValue * variation;
       });
       return data;
     });
