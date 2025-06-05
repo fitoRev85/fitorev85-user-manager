@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useEvents, Evento } from '@/hooks/useEvents';
 import { Plus, Edit2, Trash2, MapPin, Clock, TrendingUp } from 'lucide-react';
 import { format, isSameDay, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface EventsCalendarProps {
   propertyId: string;
