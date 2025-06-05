@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useEvents } from '@/hooks/useEvents';
 import { Bell, AlertTriangle, Info, CheckCircle, Calendar, TrendingUp, Eye, EyeOff } from 'lucide-react';
 import { format, parseISO, isAfter, isBefore, addDays } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { ptBR } from 'date-fns/locale/pt-BR';
 
 interface EventsAlertsProps {
   propertyId: string;

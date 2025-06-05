@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useEvents, Evento } from '@/hooks/useEvents';
 import { Plus, Edit2, Trash2, MapPin, Clock, TrendingUp } from 'lucide-react';
 import { format, isSameDay, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { ptBR } from 'date-fns/locale/pt-BR';
 
 interface EventsCalendarProps {
   propertyId: string;
