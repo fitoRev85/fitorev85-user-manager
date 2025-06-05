@@ -17,6 +17,7 @@ import Reports from "./pages/Reports";
 import ExecutiveDashboard from "./pages/ExecutiveDashboard";
 import AnalysisPage from "./pages/AnalysisPage";
 import ChannelAnalysis from "./pages/ChannelAnalysis";
+import BudgetMetas from "./pages/BudgetMetas";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ function AppRoutes() {
         <Route path="/executive" element={<ExecutiveDashboard />} />
         <Route path="/analysis" element={<AnalysisPage />} />
         <Route path="/channels" element={<ChannelAnalysis />} />
+        <Route path="/budget" element={<BudgetMetas />} />
         <Route path="/rms/:propertyId" element={<RMSForecastPace />} />
         <Route path="/pricing/:propertyId" element={<Pricing />} />
         <Route path="/reports" element={<Reports />} />

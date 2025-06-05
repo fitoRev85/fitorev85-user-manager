@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
-import { BarChart3, FileText, DollarSign, TrendingUp, Keyboard } from 'lucide-react';
+import { BarChart3, FileText, DollarSign, TrendingUp, Keyboard, Target } from 'lucide-react';
 import { useProperties } from '@/hooks/useProperties';
 import { DragDropZone } from '@/components/layout/DragDropZone';
 import { useToast } from '@/hooks/use-toast';
