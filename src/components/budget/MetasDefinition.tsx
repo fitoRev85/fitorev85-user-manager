@@ -94,7 +94,7 @@ export function MetasDefinition({ propertyId, year }: MetasDefinitionProps) {
     const revparMeta = (adrMeta * ocupacaoMeta) / 100;
 
     criarOuAtualizarMeta({
-      propriedadeId,
+      propriedadeId: propertyId,
       mesAno: `${year}-${mesAtual}`,
       receitaMeta,
       ocupacaoMeta,
@@ -131,7 +131,7 @@ export function MetasDefinition({ propertyId, year }: MetasDefinitionProps) {
       const fatorCrescimento = 1.05;
       
       criarOuAtualizarMeta({
-        propriedadeId,
+        propriedadeId: propertyId,
         mesAno: mesAnoNovo,
         receitaMeta: Math.round(metaAnterior.receitaMeta * fatorCrescimento),
         ocupacaoMeta: metaAnterior.ocupacaoMeta,
