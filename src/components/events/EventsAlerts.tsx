@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useEvents } from '@/hooks/useEvents';
 import { Bell, AlertTriangle, Info, CheckCircle, Calendar, TrendingUp, Eye, EyeOff } from 'lucide-react';
 import { format, parseISO, isAfter, isBefore, addDays } from 'date-fns';
-import { ptBR } from 'date-fns/locale/pt-BR';
+import { ptBR } from 'date-fns/locale';
 
 interface EventsAlertsProps {
   propertyId: string;
