@@ -149,7 +149,7 @@ export function VarianceAnalysis({ propertyId, year }: VarianceAnalysisProps) {
         <CardContent>
           {desviosSignificativos.length === 0 ? (
             <p className="text-slate-400 text-center py-4">
-              Nenhum desvio significativo encontrado (>5%)
+              Nenhum desvio significativo encontrado (&gt;5%)
             </p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
