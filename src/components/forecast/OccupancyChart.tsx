@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -165,7 +164,9 @@ const OccupancyChart = ({ propertyId, selectedYear, selectedMonth, isLoading = f
             <EnhancedTooltip 
               content="Gráfico comparativo mostrando ocupação atual, ano anterior e previsões ML para todos os meses"
               showIcon
-            />
+            >
+              <span></span>
+            </EnhancedTooltip>
           </CardTitle>
           <p className="text-slate-400 text-sm">
             Comparação entre ocupação atual, ano anterior e previsão ML

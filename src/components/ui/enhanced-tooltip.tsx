@@ -7,7 +7,7 @@ import { Info, HelpCircle, TrendingUp, AlertCircle } from 'lucide-react';
 interface EnhancedTooltipProps {
   children: React.ReactNode;
   content: string | React.ReactNode;
-  type?: 'info' | 'help' | 'warning' | 'trend';
+  type?: 'info' | 'help' | 'warning' | 'trend' | 'forecast';
   side?: 'top' | 'right' | 'bottom' | 'left';
   className?: string;
   showIcon?: boolean;
@@ -22,6 +22,7 @@ const TooltipIcon = ({ type }: { type: EnhancedTooltipProps['type'] }) => {
     case 'warning':
       return <AlertCircle className={iconClass} />;
     case 'trend':
+    case 'forecast':
       return <TrendingUp className={iconClass} />;
     default:
       return <Info className={iconClass} />;
@@ -49,7 +50,7 @@ export const EnhancedTooltip: React.FC<EnhancedTooltipProps> = ({
         className={cn(
           "max-w-xs text-sm animate-fade-in",
           type === 'warning' && "bg-yellow-900 border-yellow-700",
-          type === 'trend' && "bg-green-900 border-green-700",
+          (type === 'trend' || type === 'forecast') && "bg-green-900 border-green-700",
           className
         )}
       >
