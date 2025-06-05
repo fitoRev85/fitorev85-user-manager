@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -68,6 +67,18 @@ const Properties = () => {
                 <h3 className="text-white text-lg font-semibold mb-2">Análises</h3>
                 <p className="text-slate-400 text-sm">Comparações e trending de KPIs</p>
                 <div className="mt-2 text-xs text-slate-500">Ctrl+3</div>
+              </CardContent>
+            </Card>
+
+            <Card 
+              className="bg-slate-800/50 backdrop-blur-xl border-slate-700/50 hover:bg-slate-700/50 transition-colors cursor-pointer group"
+              onClick={() => navigate('/channels')}
+            >
+              <CardContent className="p-6 text-center">
+                <TrendingUp className="w-12 h-12 text-green-400 mx-auto mb-4 group-hover:scale-110 transition-transform" />
+                <h3 className="text-white text-lg font-semibold mb-2">Análises de Canais</h3>
+                <p className="text-slate-400 text-sm">Análise de canais e métricas</p>
+                <div className="mt-2 text-xs text-slate-500">Ctrl+6</div>
               </CardContent>
             </Card>
 
