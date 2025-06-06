@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { User, categoriaUsuarios } from '@/types/user';
+import { LocalStorageManager } from '@/utils/localStorage';
 
 const STORAGE_KEY = 'fitorev85_users';
 
@@ -51,73 +52,82 @@ const defaultUsers: User[] = [
 
 export function useUsers() {
   const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsedUsers = JSON.parse(stored);
-        // Convert date strings back to Date objects
-        const usersWithDates = parsedUsers.map((user: any) => ({
-          ...user,
-          dataCriacao: new Date(user.dataCriacao),
-          ultimoAcesso: user.ultimoAcesso ? new Date(user.ultimoAcesso) : undefined
-        }));
-        setUsers(usersWithDates);
-        console.log('Usuários carregados do localStorage:', usersWithDates);
-      } catch {
-        console.log('Erro ao carregar usuários, usando padrões');
-        setUsers(defaultUsers);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultUsers));
-      }
-    } else {
-      console.log('Nenhum usuário encontrado, criando usuários padrão');
-      setUsers(defaultUsers);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultUsers));
-    }
+    const loadUsers = () => {
+      const loadedUsers = LocalStorageManager.safeGet(STORAGE_KEY, defaultUsers);
+      setUsers(loadedUsers);
+      setLoading(false);
+      console.log('Usuários carregados:', loadedUsers.length);
+    };
+
+    loadUsers();
   }, []);
 
-  const saveUsers = (newUsers: User[]) => {
-    setUsers(newUsers);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newUsers));
-    console.log('Usuários salvos:', newUsers);
+  const saveUsers = (newUsers: User[]): boolean => {
+    const success = LocalStorageManager.safeSet(STORAGE_KEY, newUsers);
+    if (success) {
+      setUsers(newUsers);
+      console.log('Usuários salvos:', newUsers.length);
+    }
+    return success;
   };
 
-  const addUser = (userData: Partial<User>) => {
-    const newUser: User = {
-      ...userData as User,
-      id: Date.now().toString(),
-      permissoes: categoriaUsuarios[userData.categoria!].permissoes,
-      propriedadesAcesso: [],
-      dataCriacao: new Date(),
-      ultimoAcesso: undefined
-    };
-    
-    const updatedUsers = [...users, newUser];
-    saveUsers(updatedUsers);
-    return newUser;
+  const addUser = (userData: Partial<User>): User | null => {
+    try {
+      const newUser: User = {
+        ...userData as User,
+        id: Date.now().toString(),
+        permissoes: categoriaUsuarios[userData.categoria!].permissoes,
+        propriedadesAcesso: userData.propriedadesAcesso || [],
+        dataCriacao: new Date(),
+        ultimoAcesso: undefined
+      };
+      
+      const updatedUsers = [...users, newUser];
+      return saveUsers(updatedUsers) ? newUser : null;
+    } catch (error) {
+      console.error('Erro ao adicionar usuário:', error);
+      return null;
+    }
   };
 
-  const updateUser = (userId: string, userData: Partial<User>) => {
-    const updatedUsers = users.map(u => u.id === userId ? 
-      { ...u, ...userData, permissoes: categoriaUsuarios[userData.categoria!].permissoes } : u
-    );
-    saveUsers(updatedUsers);
+  const updateUser = (userId: string, userData: Partial<User>): boolean => {
+    try {
+      const updatedUsers = users.map(u => u.id === userId ? 
+        { 
+          ...u, 
+          ...userData, 
+          permissoes: userData.categoria ? categoriaUsuarios[userData.categoria].permissoes : u.permissoes
+        } : u
+      );
+      return saveUsers(updatedUsers);
+    } catch (error) {
+      console.error('Erro ao atualizar usuário:', error);
+      return false;
+    }
   };
 
-  const deleteUser = (userId: string) => {
-    const updatedUsers = users.filter(u => u.id !== userId);
-    saveUsers(updatedUsers);
+  const deleteUser = (userId: string): boolean => {
+    try {
+      const updatedUsers = users.filter(u => u.id !== userId);
+      return saveUsers(updatedUsers);
+    } catch (error) {
+      console.error('Erro ao excluir usuário:', error);
+      return false;
+    }
   };
 
-  const getUserByEmail = (email: string) => {
+  const getUserByEmail = (email: string): User | undefined => {
     const user = users.find(u => u.email === email && u.ativo);
-    console.log('Buscando usuário:', email, 'Encontrado:', user);
+    console.log('Buscando usuário:', email, 'Encontrado:', !!user);
     return user;
   };
 
   return {
     users,
+    loading,
     addUser,
     updateUser,
     deleteUser,
