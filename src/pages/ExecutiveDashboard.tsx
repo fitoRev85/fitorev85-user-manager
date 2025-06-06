@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useProperties } from '@/hooks/useProperties';
 import { useReservationData } from '@/hooks/useReservationData';
 import ChannelAnalytics from '@/components/dashboard/ChannelAnalytics';
+import PerformanceComparison from '@/components/dashboard/PerformanceComparison';
 
 const ExecutiveDashboard = () => {
   const navigate = useNavigate();
@@ -155,6 +155,9 @@ const ExecutiveDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Performance vs Período Anterior */}
+        <PerformanceComparison propertyId={propertyId} />
 
         {/* Abas de análise */}
         <Tabs defaultValue="channels" className="space-y-6">
