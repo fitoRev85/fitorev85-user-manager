@@ -3,15 +3,17 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Users, TrendingUp, Plus, BarChart3, Calendar, DollarSign, Settings } from 'lucide-react';
+import { Building2, Users, TrendingUp, Plus, BarChart3, Calendar, DollarSign, Settings, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useProperties } from '@/hooks/useProperties';
+import { useAutomaticAlerts } from '@/hooks/useAutomaticAlerts';
 import { CreateProperty } from '@/components/CreateProperty';
 import { PropertyGoalProgress } from '@/components/PropertyGoalProgress';
 
 const Properties = () => {
   const navigate = useNavigate();
   const { properties, updatePropertyMeta, addProperty } = useProperties();
+  const { estatisticas } = useAutomaticAlerts();
   const [showCreateForm, setShowCreateForm] = useState(false);
 
   const handlePropertyClick = (propertyId: string) => {
@@ -57,6 +59,19 @@ const Properties = () => {
           >
             <BarChart3 className="w-4 h-4 mr-2" />
             Dashboard Executivo
+          </Button>
+          <Button
+            onClick={() => navigate('/alerts')}
+            variant="outline"
+            className="border-slate-600 text-slate-300 hover:bg-slate-700 relative"
+          >
+            <Bell className="w-4 h-4 mr-2" />
+            Sistema de Alertas
+            {estatisticas.total > 0 && (
+              <Badge className="absolute -top-2 -right-2 bg-red-500 text-white text-xs min-w-5 h-5 flex items-center justify-center p-0">
+                {estatisticas.total}
+              </Badge>
+            )}
           </Button>
         </div>
 
