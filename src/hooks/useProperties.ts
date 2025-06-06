@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 
 export interface Property {
@@ -13,6 +12,7 @@ export interface Property {
   revpar?: number;
   occupancy?: number;
   adr?: number;
+  metaMensalReceita?: number;
 }
 
 const STORAGE_KEY = 'fitorev85_properties';
@@ -90,7 +90,8 @@ export function useProperties() {
       city: propertyData.location,
       revpar: 0,
       occupancy: 0,
-      adr: 0
+      adr: 0,
+      metaMensalReceita: 0
     };
     
     const updatedProperties = [...properties, newProperty];
@@ -101,6 +102,13 @@ export function useProperties() {
   const updateProperty = (updatedProperty: Property) => {
     const updatedProperties = properties.map(p => 
       p.id === updatedProperty.id ? updatedProperty : p
+    );
+    saveProperties(updatedProperties);
+  };
+
+  const updatePropertyMeta = (propertyId: string, metaMensalReceita: number) => {
+    const updatedProperties = properties.map(p => 
+      p.id === propertyId ? { ...p, metaMensalReceita } : p
     );
     saveProperties(updatedProperties);
   };
@@ -118,6 +126,7 @@ export function useProperties() {
     properties,
     addProperty,
     updateProperty,
+    updatePropertyMeta,
     deleteProperty,
     getProperty
   };
