@@ -11,7 +11,7 @@ import { PropertyGoalProgress } from '@/components/PropertyGoalProgress';
 
 const Properties = () => {
   const navigate = useNavigate();
-  const { properties, updatePropertyMeta } = useProperties();
+  const { properties, updatePropertyMeta, addProperty } = useProperties();
   const [showCreateForm, setShowCreateForm] = useState(false);
 
   const handlePropertyClick = (propertyId: string) => {
@@ -20,6 +20,11 @@ const Properties = () => {
 
   const handleUpdateMeta = (propertyId: string, newMeta: number) => {
     updatePropertyMeta(propertyId, newMeta);
+  };
+
+  const handleCreateProperty = (data: { name: string; location: string; rooms: string; description: string }) => {
+    addProperty(data);
+    setShowCreateForm(false);
   };
 
   return (
@@ -177,9 +182,11 @@ const Properties = () => {
         )}
 
         {/* Create Property Modal */}
-        {showCreateForm && (
-          <CreateProperty onClose={() => setShowCreateForm(false)} />
-        )}
+        <CreateProperty 
+          isOpen={showCreateForm}
+          onClose={() => setShowCreateForm(false)}
+          onSubmit={handleCreateProperty}
+        />
       </div>
     </div>
   );
